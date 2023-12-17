@@ -100,6 +100,8 @@ diesel::table! {
         category_id -> Int4,
         credentials -> Nullable<Text>,
         delivery_enabled -> Nullable<Bool>,
+        photo_id -> Nullable<Int4>,
+        average_rating -> Nullable<Numeric>,
     }
 }
 
@@ -109,6 +111,25 @@ diesel::table! {
         name -> Varchar,
         email -> Varchar,
         user_uid -> Varchar,
+        photo_id -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
+    review (id) {
+        id -> Int4,
+        user_id -> Int4,
+        professional_profile_id -> Int4,
+        message -> Text,
+        rate -> Nullable<Numeric>,
+    }
+}
+
+diesel::table! {
+    review_content_assignments (id) {
+        id -> Int4,
+        review_id -> Int4,
+        photo_id -> Int4,
     }
 }
 
@@ -135,6 +156,7 @@ diesel::table! {
         name -> Varchar,
         email -> Varchar,
         user_uid -> Varchar,
+        photo_id -> Nullable<Int4>,
     }
 }
 
@@ -152,6 +174,9 @@ diesel::joinable!(order_subcategories -> subcategories (subcategory_id));
 diesel::joinable!(orders -> addresses (address_id));
 diesel::joinable!(orders -> users (user_id));
 diesel::joinable!(professional_profiles -> professionals (professional_id));
+diesel::joinable!(review -> professional_profiles (professional_profile_id));
+diesel::joinable!(review -> users (user_id));
+diesel::joinable!(review_content_assignments -> review (review_id));
 diesel::joinable!(service_offerings -> professional_profiles (professional_profile_id));
 diesel::joinable!(service_offerings -> subcategories (subcategory_id));
 diesel::joinable!(subcategories -> categories (category_id));
@@ -169,6 +194,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     orders,
     professional_profiles,
     professionals,
+    review,
+    review_content_assignments,
     service_offerings,
     subcategories,
     users,

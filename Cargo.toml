@@ -9,5 +9,7 @@ edition = "2021"
 tokio = "1.35.0"
 diesel = {version = "2.1.4", features = ["postgres", "r2d2", "chrono"] }
 actix-web = "4.4.0"
+actix-cors = "0.6.5"
 chrono = "0.4.31"
-serde = "1.0.193"
+serde = { version = "1.0.193", features = ["derive"] }
+dotenv = "0.15.0"
