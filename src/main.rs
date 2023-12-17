@@ -29,7 +29,7 @@ async fn main() -> std::io::Result<()> {
             .max_age(3600)
             )
             .app_data(web::Data::new(pool.clone()))
-            .route("/auth/users/{uid}", 
+            .route("/auth/users/{user_email}", 
             web::get().to(user_controller::get_user_handler))
             // Add other routes here
     })
