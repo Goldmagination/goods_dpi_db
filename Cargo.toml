@@ -13,3 +13,4 @@ actix-cors = "0.6.5"
 chrono = "0.4.31"
 serde = { version = "1.0.193", features = ["derive"] }
 dotenv = "0.15.0"
+reqwest = { version = "0.11.23", features = ["json"] }
