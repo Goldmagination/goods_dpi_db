@@ -15,8 +15,8 @@ diesel::table! {
         city -> Varchar,
         state -> Varchar,
         zip -> Varchar,
-        lng -> Numeric,
-        lat -> Numeric,
+        lng -> Float8,
+        lat -> Float8,
     }
 }
 
@@ -145,6 +145,19 @@ diesel::table! {
 }
 
 diesel::table! {
+    spatial_ref_sys (srid) {
+        srid -> Int4,
+        #[max_length = 256]
+        auth_name -> Nullable<Varchar>,
+        auth_srid -> Nullable<Int4>,
+        #[max_length = 2048]
+        srtext -> Nullable<Varchar>,
+        #[max_length = 2048]
+        proj4text -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
     subcategories (id) {
         id -> Int4,
         name -> Varchar,
@@ -199,6 +212,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     review,
     review_content_assignments,
     service_offerings,
+    spatial_ref_sys,
     subcategories,
     users,
 );

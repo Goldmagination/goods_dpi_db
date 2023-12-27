@@ -26,18 +26,16 @@ use diesel::result::Error;
 
 
 pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, lng_from_user:f64, conn: &mut PgConnection) -> Result<Vec<ProfessionalDTO>, Error> {
-    // ... [token validation logic] ...
-
     let radius = 5000.0; // 5 km in meters
     let raw_sql = r#"
     WITH RelevantProfiles AS (
         SELECT DISTINCT professional_profiles.id
         FROM professional_profiles
         INNER JOIN service_offerings ON professional_profiles.id = service_offerings.professional_profile_id
-        WHERE service_offerings.subcategory_id = $1
+        WHERE service_offerings.subcategory_id = $1 -- or any other provided subcategory_id
     )
     SELECT
-        professional_profiles.id,
+        professional_profiles.id as professional_profiles_id,
         professional_profiles.category_id,
         professional_profiles.credentials,
         professional_profiles.delivery_enabled,
@@ -48,7 +46,8 @@ pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, l
         addresses.lng, 
         addresses.lat, 
         categories.name AS category_name, 
-        professionals.name AS professional_name
+        professionals.name AS professional_name,
+        json_agg(service_offerings.*) AS service_offering_details
     FROM RelevantProfiles
     INNER JOIN professional_profiles ON RelevantProfiles.id = professional_profiles.id
     INNER JOIN professionals ON professional_profiles.professional_id = professionals.id
@@ -67,6 +66,7 @@ pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, l
         professional_profiles.id, 
         addresses.street, addresses.city, addresses.zip, addresses.lng, addresses.lat, 
         categories.name, professionals.name;
+    
     "#;
 
     // Query to find professionals based on category and location
@@ -76,11 +76,6 @@ pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, l
         .bind::<diesel::sql_types::Double, _>(lat_from_user)
         .bind::<diesel::sql_types::Double, _>(radius)
         .load::<ProfessionalDTO>(conn)?; 
-        
-    
-    for professional in &professional_profiles_from_db {
-        println!("{:?}", professional.professional_name);
-    }
     
     // let dto_list: Vec<ProfessionalDTO> = transform_to_dto(professional_profiles_from_db);
 
