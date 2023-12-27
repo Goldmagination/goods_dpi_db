@@ -15,6 +15,8 @@ diesel::table! {
         city -> Varchar,
         state -> Varchar,
         zip -> Varchar,
+        lng -> Numeric,
+        lat -> Numeric,
     }
 }
 
