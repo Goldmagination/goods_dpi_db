@@ -1,0 +1,3 @@
+ALTER TABLE addresses
+DROP COLUMN lng,
+DROP COLUMN lat;
