@@ -25,7 +25,7 @@ use diesel::prelude::*;
 use diesel::result::Error;
 
 
-pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, lng_from_user:f64, conn: &mut PgConnection) -> Result<Vec<ProfessionalDTO>, Error> {
+pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, lng_from_user:f64, conn: &mut PgConnection) -> Result<Vec<ProfessionalProfileDTO>, Error> {
     let radius = 5000.0; // 5 km in meters
     let raw_sql = r#"
     WITH RelevantProfiles AS (
@@ -70,12 +70,12 @@ pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, l
     "#;
 
     // Query to find professionals based on category and location
-    let professional_profiles_from_db: Vec<ProfessionalDTO> = sql_query(raw_sql)
+    let professional_profiles_from_db: Vec<ProfessionalProfileDTO> = sql_query(raw_sql)
         .bind::<diesel::sql_types::Integer, _>(subcategory_id_from_user)
         .bind::<diesel::sql_types::Double, _>(lng_from_user)
         .bind::<diesel::sql_types::Double, _>(lat_from_user)
         .bind::<diesel::sql_types::Double, _>(radius)
-        .load::<ProfessionalDTO>(conn)?; 
+        .load::<ProfessionalProfileDTO>(conn)?; 
     
     // let dto_list: Vec<ProfessionalDTO> = transform_to_dto(professional_profiles_from_db);
 

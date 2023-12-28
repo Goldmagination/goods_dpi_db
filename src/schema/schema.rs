@@ -141,6 +141,8 @@ diesel::table! {
         professional_profile_id -> Int4,
         subcategory_id -> Int4,
         price -> Numeric,
+        #[max_length = 255]
+        subcategory_name -> Nullable<Varchar>,
     }
 }
 

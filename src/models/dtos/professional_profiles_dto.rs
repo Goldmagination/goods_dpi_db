@@ -3,7 +3,7 @@ use diesel::sql_types::*;
 use diesel::QueryableByName; 
 
 #[derive(Debug, QueryableByName, Serialize, Deserialize)]
-pub struct ProfessionalDTO {
+pub struct ProfessionalProfileDTO {
     #[diesel(sql_type = Integer)]
     pub professional_profiles_id: i32,
 
