@@ -5,7 +5,7 @@ use diesel::QueryableByName;
 #[derive(Debug, QueryableByName, Serialize, Deserialize)]
 pub struct ProfessionalProfileDTO {
     #[diesel(sql_type = Integer)]
-    pub professional_profiles_id: i32,
+    pub id: i32,
 
     #[diesel(sql_type = Integer)]
     pub category_id: i32,
@@ -18,6 +18,9 @@ pub struct ProfessionalProfileDTO {
 
     #[diesel(sql_type = Nullable<Float8>)]
     pub average_rating: Option<f64>,  // Nullable to handle cases where it might be NaN or NULL
+
+    #[diesel(sql_type = BigInt)]
+    pub review_count: i64,
 
     #[diesel(sql_type = Text)]
     pub street: String,
@@ -39,9 +42,6 @@ pub struct ProfessionalProfileDTO {
     
     #[diesel(sql_type = Text)]
     pub professional_name: String,
-    
-    #[diesel(sql_type = Text)]
-    pub service_offering_details: String,  // Holds raw JSON string of service offerings
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -11,7 +11,7 @@ pub struct ProfessionalProfileQuery {
     lng: f64,
 }
 
-pub async fn get_professional_profile_handler(query_info: web::Json<ProfessionalProfileQuery>, db_pool: web::Data<Pool>) -> impl Responder {
+pub async fn get_professional_profile_handler(query_info: web::Query<ProfessionalProfileQuery>, db_pool: web::Data<Pool>) -> impl Responder {
     // ... [token validation logic] ...
     let mut conn = db_pool.get().expect("Failed to get DB connection from pool");
     let subcategory_id = query_info.subcategory_id;

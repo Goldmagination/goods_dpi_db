@@ -35,7 +35,7 @@ pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, l
         WHERE service_offerings.subcategory_id = $1 -- or any other provided subcategory_id
     )
     SELECT
-        professional_profiles.id as professional_profiles_id,
+        professional_profiles.id,
         professional_profiles.category_id,
         professional_profiles.credentials,
         professional_profiles.delivery_enabled,
@@ -47,7 +47,7 @@ pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, l
         addresses.lat, 
         categories.name AS category_name, 
         professionals.name AS professional_name,
-        json_agg(service_offerings.*) AS service_offering_details
+        COUNT(review.id) AS review_count
     FROM RelevantProfiles
     INNER JOIN professional_profiles ON RelevantProfiles.id = professional_profiles.id
     INNER JOIN professionals ON professional_profiles.professional_id = professionals.id
@@ -56,6 +56,7 @@ pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, l
     INNER JOIN service_offerings ON professional_profiles.id = service_offerings.professional_profile_id 
     INNER JOIN subcategories ON service_offerings.subcategory_id = subcategories.id
     INNER JOIN categories ON subcategories.category_id = categories.id
+    LEFT JOIN review ON professional_profiles.id = review.professional_profile_id 
     WHERE
         ST_DWithin(
             geography(ST_MakePoint(addresses.lng::double precision, addresses.lat::double precision)), 
