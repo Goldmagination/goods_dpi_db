@@ -8,7 +8,7 @@ pub struct User {
     pub name: String,
     pub email: String,
     pub user_uid: String,
-    pub photo_id: Option<i32>,
+    pub image_url: Option<String>,
 }
 
 #[derive(Insertable)]

@@ -6,5 +6,5 @@ use diesel::prelude::*;
 pub struct MessageAssignment {
     pub id: i32,
     pub message_id: i32,
-    pub photo_id: i32,
+    pub image_url: String,
 }

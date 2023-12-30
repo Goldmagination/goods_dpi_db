@@ -24,7 +24,8 @@ diesel::table! {
     appointment_assignments (id) {
         id -> Int4,
         appointment_id -> Int4,
-        photo_id -> Nullable<Int4>,
+        #[max_length = 255]
+        image_url -> Varchar,
     }
 }
 
@@ -73,7 +74,8 @@ diesel::table! {
     message_assignments (id) {
         id -> Int4,
         message_id -> Int4,
-        photo_id -> Int4,
+        #[max_length = 255]
+        image_url -> Varchar,
     }
 }
 
@@ -101,9 +103,11 @@ diesel::table! {
         professional_id -> Int4,
         category_id -> Int4,
         credentials -> Nullable<Text>,
-        delivery_enabled -> Nullable<Bool>,
-        photo_id -> Nullable<Int4>,
+        delivery_enabled -> Bool,
+        #[max_length = 255]
+        image_url -> Nullable<Varchar>,
         average_rating -> Nullable<Numeric>,
+        remote_available -> Bool,
     }
 }
 
@@ -113,7 +117,8 @@ diesel::table! {
         name -> Varchar,
         email -> Varchar,
         user_uid -> Varchar,
-        photo_id -> Nullable<Int4>,
+        #[max_length = 255]
+        image_url -> Nullable<Varchar>,
     }
 }
 
@@ -131,7 +136,8 @@ diesel::table! {
     review_content_assignments (id) {
         id -> Int4,
         review_id -> Int4,
-        photo_id -> Int4,
+        #[max_length = 255]
+        image_url -> Varchar,
     }
 }
 
@@ -173,7 +179,8 @@ diesel::table! {
         name -> Varchar,
         email -> Varchar,
         user_uid -> Varchar,
-        photo_id -> Nullable<Int4>,
+        #[max_length = 255]
+        image_url -> Nullable<Varchar>,
     }
 }
 

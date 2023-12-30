@@ -8,4 +8,6 @@ pub struct Review {
     pub professional_profile_id: i32,
     pub message: String,
     pub rate: f32, // Assuming decimal is represented as a float
+    pub content_assignments: Vec<ReviewContentAssignments>
 }
+

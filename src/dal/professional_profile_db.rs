@@ -36,9 +36,9 @@ pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, l
     )
     SELECT
         professional_profiles.id,
-        professional_profiles.category_id,
-        professional_profiles.credentials,
+        professional_profiles.image_url,
         professional_profiles.delivery_enabled,
+        professional_profiles.remote_available,
         professional_profiles.average_rating,
         addresses.street, 
         addresses.city, 

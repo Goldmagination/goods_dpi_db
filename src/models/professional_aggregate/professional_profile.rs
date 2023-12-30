@@ -8,7 +8,7 @@ pub struct ProfessionalProfile {
     pub category_id: i32,
     pub credentials: String,
     pub delivery_enabled: bool,
-    pub photo_id: i32,
+    pub image_url: Option<String>,
     pub average_rating: f32,
 }
 
