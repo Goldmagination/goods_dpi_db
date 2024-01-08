@@ -8,7 +8,7 @@ use crate::models::professional_aggregate::professional_profile::ProfessionalPro
 #[diesel(table_name = service_offerings)]
 pub struct ServiceOffering {
     pub id: i32,
-    pub professional_profile_id: i32,
+    pub professional_profile_id: i32, //TODO: add category id in order to handle icons
     pub subcategory_id: i32,
     pub price: f64, // Assuming `decimal` maps to `f64`
     pub subcategory_name: String,

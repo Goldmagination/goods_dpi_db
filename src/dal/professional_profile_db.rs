@@ -148,6 +148,7 @@ pub async fn get_profile(conn: &mut PgConnection, profile_id: i32)-> Result<Prof
 
     let final_profile = ProfessionalProfileDetailDTO {
         id: profile.id,
+        professional_name: profile.professional_name,
         image_url: profile.image_url,
         category_name: category.name,
         credentials: profile.credentials,

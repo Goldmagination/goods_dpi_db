@@ -108,6 +108,7 @@ diesel::table! {
         image_url -> Nullable<Varchar>,
         average_rating -> Nullable<Float8>,
         remote_available -> Bool,
+        professional_name -> Varchar,
     }
 }
 
@@ -131,6 +132,7 @@ diesel::table! {
         rate -> Float8,
         #[max_length = 255]
         user_name -> Varchar,
+        published_at -> Timestamptz,
     }
 }
 

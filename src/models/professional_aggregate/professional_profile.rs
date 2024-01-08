@@ -6,6 +6,7 @@ use crate::schema::schema::professional_profiles;
 pub struct ProfessionalProfile {
     pub id: i32,
     pub professional_id: i32,
+    pub professional_name: String,
     pub category_id: i32,
     pub credentials: Option<String>,
     pub delivery_enabled: bool,

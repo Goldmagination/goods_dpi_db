@@ -1,5 +1,7 @@
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+
 use crate::models::
 {
     review_aggregate::review::*,
@@ -14,6 +16,7 @@ pub struct ReviewDTO {
     pub professional_profile_id: i32,
     pub message: String,
     pub rate: f64,
+    pub published_at: DateTime<Utc>,
     pub content_assignments: Option<Vec<ReviewContentAssignmentDTO>>
 }
 
@@ -45,6 +48,7 @@ impl ReviewDTO {
             professional_profile_id: review.professional_profile_id,
             message: review.message.clone(),
             rate: review.rate,
+            published_at: review.published_at,
             content_assignments,
         }
     }

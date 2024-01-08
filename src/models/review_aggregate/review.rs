@@ -1,4 +1,5 @@
 use diesel::prelude::*;
+use chrono::{DateTime, Utc};
 use crate::schema::schema::review;
 use crate::models::professional_aggregate::professional_profile::ProfessionalProfile;
 
@@ -12,7 +13,7 @@ pub struct Review {
     pub user_name: String,
     pub professional_profile_id: i32,
     pub message: String,
-    pub rate: f64, // Assuming decimal is represented as a float
-    // pub content_assignments: Option<Vec<ReviewContentAssignment>>
+    pub rate: f64,
+    pub published_at: DateTime<Utc>,
 }
 
