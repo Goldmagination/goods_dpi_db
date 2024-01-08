@@ -2,8 +2,8 @@ use std::env;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-const FIREBASE_API_URL: &str = "https://identitytoolkit.googleapis.com/v1/accounts:signUp";
-
+const FIREBASE_SIGN_UP_URL: &str = "https://identitytoolkit.googleapis.com/v1/accounts:signUp";
+const FIREBASE_VALIDATE_TOKEN_URL: &str = "https://identitytoolkit.googleapis.com/v1/accounts:lookup";
 #[derive(Serialize)]
 struct FirebaseRegisterRequest {
     email: String,
@@ -33,7 +33,7 @@ pub async fn create_firebase_user(email: &str, password: &str) -> Result<Firebas
     };
 
     let response = client
-        .post(format!("{}?key={}", FIREBASE_API_URL, api_key))
+        .post(format!("{}?key={}", FIREBASE_SIGN_UP_URL, api_key))
         .json(&request_body)
         .send()
         .await;
@@ -53,3 +53,22 @@ pub async fn create_firebase_user(email: &str, password: &str) -> Result<Firebas
         Err(_) => Err("Failed to send request to Firebase".to_string()),
     }
 }
+pub async fn verify_token(token: &str) -> Result<bool, reqwest::Error> {
+    let api_key = env::var("FIREBASE_API_KEY")
+        .expect("FIREBASE_API_KEY must be set");
+    let url = format!("{}?key={}", FIREBASE_VALIDATE_TOKEN_URL, api_key);
+    let client = reqwest::Client::new();
+    let res = client.post(&url)
+        .json(&serde_json::json!({
+            "idToken": token
+        }))
+        .send()
+        .await?;
+
+    if res.status().is_success() {
+        Ok(true) // Token is valid
+    } else {
+        Ok(false) // Token is invalid
+    }
+}
+

@@ -385,6 +385,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-targets 0.48.5",
 ]
@@ -673,6 +674,7 @@ dependencies = [
  "dotenv",
  "reqwest",
  "serde",
+ "serde_json",
  "tokio",
 ]
 

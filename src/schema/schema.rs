@@ -24,7 +24,8 @@ diesel::table! {
     appointment_assignments (id) {
         id -> Int4,
         appointment_id -> Int4,
-        photo_id -> Nullable<Int4>,
+        #[max_length = 255]
+        image_url -> Varchar,
     }
 }
 
@@ -73,7 +74,8 @@ diesel::table! {
     message_assignments (id) {
         id -> Int4,
         message_id -> Int4,
-        photo_id -> Int4,
+        #[max_length = 255]
+        image_url -> Varchar,
     }
 }
 
@@ -101,9 +103,12 @@ diesel::table! {
         professional_id -> Int4,
         category_id -> Int4,
         credentials -> Nullable<Text>,
-        delivery_enabled -> Nullable<Bool>,
-        photo_id -> Nullable<Int4>,
-        average_rating -> Nullable<Numeric>,
+        delivery_enabled -> Bool,
+        #[max_length = 255]
+        image_url -> Nullable<Varchar>,
+        average_rating -> Nullable<Float8>,
+        remote_available -> Bool,
+        professional_name -> Varchar,
     }
 }
 
@@ -113,7 +118,8 @@ diesel::table! {
         name -> Varchar,
         email -> Varchar,
         user_uid -> Varchar,
-        photo_id -> Nullable<Int4>,
+        #[max_length = 255]
+        image_url -> Nullable<Varchar>,
     }
 }
 
@@ -123,7 +129,10 @@ diesel::table! {
         user_id -> Int4,
         professional_profile_id -> Int4,
         message -> Text,
-        rate -> Nullable<Numeric>,
+        rate -> Float8,
+        #[max_length = 255]
+        user_name -> Varchar,
+        published_at -> Timestamptz,
     }
 }
 
@@ -131,7 +140,8 @@ diesel::table! {
     review_content_assignments (id) {
         id -> Int4,
         review_id -> Int4,
-        photo_id -> Int4,
+        #[max_length = 255]
+        image_url -> Varchar,
     }
 }
 
@@ -140,7 +150,22 @@ diesel::table! {
         id -> Int4,
         professional_profile_id -> Int4,
         subcategory_id -> Int4,
-        price -> Numeric,
+        price -> Float8,
+        #[max_length = 255]
+        subcategory_name -> Varchar,
+    }
+}
+
+diesel::table! {
+    spatial_ref_sys (srid) {
+        srid -> Int4,
+        #[max_length = 256]
+        auth_name -> Nullable<Varchar>,
+        auth_srid -> Nullable<Int4>,
+        #[max_length = 2048]
+        srtext -> Nullable<Varchar>,
+        #[max_length = 2048]
+        proj4text -> Nullable<Varchar>,
     }
 }
 
@@ -171,7 +196,8 @@ diesel::table! {
         name -> Varchar,
         email -> Varchar,
         user_uid -> Varchar,
-        photo_id -> Nullable<Int4>,
+        #[max_length = 255]
+        image_url -> Nullable<Varchar>,
     }
 }
 
