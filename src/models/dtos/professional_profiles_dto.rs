@@ -43,10 +43,3 @@ pub struct ProfessionalProfileDTO {
     #[diesel(sql_type = Text)]
     pub professional_name: String,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ServiceOfferingDTO {
-    pub subcategory_id: i32,
-    pub subcategory_name: String,
-    pub price: f64,  // Ensure this is appropriately represented in your database
-}

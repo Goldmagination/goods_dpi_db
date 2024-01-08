@@ -1,12 +1,13 @@
 use diesel::prelude::*;
+use crate::schema::schema::addresses;
 
-
-#[derive(Queryable)]
+#[derive(Queryable, Identifiable, Selectable)]
+#[diesel(table_name = addresses)]
 pub struct Address {
     pub id: i32,
     pub street: String,
     pub city: String,
-    pub state: Country,
+    pub state: String,
     pub zip: String,
     pub lng: f64,
     pub lat: f64

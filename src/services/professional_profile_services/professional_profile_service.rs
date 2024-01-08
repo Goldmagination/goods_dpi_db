@@ -12,9 +12,9 @@ pub struct ProfessionalProfileQuery {
 }
 
 pub async fn get_professional_profile_handler(req: HttpRequest, query_info: web::Query<ProfessionalProfileQuery>, db_pool: web::Data<Pool>) -> impl Responder {
-    let token = _extract_token_from_auth_header(req.headers().get("Authorization"));
 
     // Verify the token
+    let token = _extract_token_from_auth_header(req.headers().get("Authorization"));
     match token {
         Some(t) => {
             if let Ok(is_valid) = verify_token(&t).await {
@@ -63,6 +63,36 @@ pub async fn get_professional_profile_handler(req: HttpRequest, query_info: web:
     }
 }
 
+
+
+pub async fn get_profile_by_id(req: HttpRequest, profile_id: web::Path<i32>, db_pool: web::Data<Pool>) -> impl Responder {
+    // Verify the token
+    let token = _extract_token_from_auth_header(req.headers().get("Authorization"));
+
+    match token {
+        Some(t) => {
+            if let Ok(is_valid) = verify_token(&t).await {
+                if !is_valid {
+                    // If the token is not valid, return an unauthorized response
+                    return HttpResponse::Unauthorized().body("Invalid token");
+                }
+            } else {
+                // If token verification failed due to some error
+                return HttpResponse::InternalServerError().finish();
+            }
+        },
+        None => {
+            // If no token is present in the request
+            return HttpResponse::Unauthorized().body("No token");
+        }
+    }
+    let mut conn = db_pool.get().expect("Failed to get DB connection from pool");
+    
+    match professional_profile_db::get_profile(&mut conn, profile_id.into_inner()).await {
+        Ok(professional_profile_dto) => HttpResponse::Ok().json(professional_profile_dto),
+        Err(_) => HttpResponse::NotFound().finish(),
+    }
+}
 fn _extract_token_from_auth_header(auth_header: Option<&HeaderValue>) -> Option<String> {
     // Extract the Bearer token from the Authorization header
     auth_header?

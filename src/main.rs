@@ -13,8 +13,13 @@ mod services
 // }}
 mod models {
     pub mod address;
+    pub mod address_assignments;
     pub mod dtos{
         pub mod professional_profiles_dto;
+        pub mod professional_profile_detail_dto;
+        pub mod review_dto;
+        pub mod address_dto;
+        pub mod subcategory_dto;
     }
     pub mod user_aggregate{
         pub mod user;
@@ -26,10 +31,19 @@ mod models {
         pub mod professional_profile;
         pub mod service_offering;
     }
+    pub mod category_aggregate{
+        pub mod category;
+        pub mod sub_category;
+    }
+    pub mod review_aggregate{
+        pub mod review;
+        pub mod review_content_assignments;
+    }
     pub mod appointment_aggregate
     {
         pub mod appointment_assignment;
-    }}
+    }
+}
 mod schema {pub mod schema;}
 
 use db::{Pool};

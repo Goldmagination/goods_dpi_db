@@ -1,8 +1,16 @@
 use crate::models::
 {
-    // address::*,
+    address::*,
+    address_assignments::*,
     dtos::professional_profiles_dto::*,
-    // professional_aggregate::professional_profile::*,
+    dtos::professional_profile_detail_dto::*,
+    dtos::review_dto::*,
+    dtos::address_dto::*,
+    professional_aggregate::professional_profile::*,
+    professional_aggregate::service_offering::*,
+    category_aggregate::category::*,
+    review_aggregate::review::*,
+    review_aggregate::review_content_assignments::*
     // professional_aggregate::service_offering::*
 };
 // use crate::schema::schema::{
@@ -19,7 +27,11 @@ use crate::models::
 //     service_offerings,
 //     service_offerings::dsl::*
 // };
-
+use crate::schema::schema::{
+    addresses,
+    professional_profiles, 
+    categories,
+};
 use diesel::sql_query;
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -85,30 +97,69 @@ pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, l
     Ok(professional_profiles_from_db)
 }
 
-// fn transform_to_dto(raw_data: Vec<ProfessionalDTO>) -> Vec<ProfessionalDTO> {
-//     raw_data.into_iter().map(|item| {
-//         ProfessionalDTO {
-//             id: item.id,
-//             category_id: item.category_id,
-//             credentials: item.credentials,
-//             delivery_enabled: item.delivery_enabled,
-//             average_rating: item.average_rating,
-//             street: item.street,
-//             city: item.city,
-//             zip: item.zip,
-//             lng: item.lng,
-//             lat: item.lat,
-//             category_name: item.category_name,
-//             professional_name: item.professional_name,
-//             service_offering_details: item.service_offering_details.into_iter().map(|s| {
-//                 ServiceOfferingDTO {
-//                     subcategory_id: s.subcategory_id,
-//                     subcategory_name: s.subcategory_name,
-//                     price: s.price,
-//                 }
-//             }).collect(),
-//         }
-//     }).collect()
-// }
+pub async fn get_profile(conn: &mut PgConnection, profile_id: i32)-> Result<ProfessionalProfileDetailDTO, Error> {
+    
+    let profile = professional_profiles::table.find(profile_id)
+    .select(ProfessionalProfile::as_select())
+    .first::<ProfessionalProfile>(conn)?;
+
+    let address_from_db = AddressAssignments::belonging_to(&profile)
+    .inner_join(addresses::table)
+    .select(Address::as_select())
+    .first::<Address>(conn).optional();
+
+    let address = match address_from_db {
+        Ok(Some(addr)) => Some(AddressDTO::address_to_dto(&addr)),
+        Ok(None) => None,
+        Err(_) => {
+            None
+        }
+    };
+
+
+    let category = categories::table.find(profile.category_id)
+    .select(Category::as_select())
+    .first(conn)?;
+
+    let service_offerings_from_db = ServiceOffering::belonging_to(&profile)
+    .select(ServiceOffering::as_select())
+    .load(conn)?; //TODO:To DTO
+
+    let service_offerings = service_offerings_from_db.iter()
+    .map(ServiceOfferingDTO::service_offering_to_dto)
+    .collect();
+
+
+    let reviews_from_db = Review::belonging_to(&profile)
+    .select(Review::as_select())
+    .load::<Review>(conn)
+    .optional()?;
+
+    let reviews = reviews_from_db.map(|reviews| {
+        reviews.iter().map(|review| { 
+            let review_content_assignments = ReviewContentAssignment::belonging_to(review)
+                .select(ReviewContentAssignment::as_select())
+                .load::<ReviewContentAssignment>(conn)
+                .unwrap_or_default();
+
+            ReviewDTO::review_to_dto(review, &review_content_assignments)
+        }).collect::<Vec<ReviewDTO>>()
+    });
+
+    let final_profile = ProfessionalProfileDetailDTO {
+        id: profile.id,
+        image_url: profile.image_url,
+        category_name: category.name,
+        credentials: profile.credentials,
+        delivery_enabled: profile.delivery_enabled,
+        remote_available: profile.remote_available,
+        average_rating: profile.average_rating,
+        address: address,
+        service_offerings: service_offerings,
+        reviews: reviews,
+        review_count: 0
+    };
+    Ok(final_profile)
+}
 
 

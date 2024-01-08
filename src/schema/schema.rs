@@ -106,7 +106,7 @@ diesel::table! {
         delivery_enabled -> Bool,
         #[max_length = 255]
         image_url -> Nullable<Varchar>,
-        average_rating -> Nullable<Numeric>,
+        average_rating -> Nullable<Float8>,
         remote_available -> Bool,
     }
 }
@@ -128,7 +128,9 @@ diesel::table! {
         user_id -> Int4,
         professional_profile_id -> Int4,
         message -> Text,
-        rate -> Nullable<Numeric>,
+        rate -> Float8,
+        #[max_length = 255]
+        user_name -> Varchar,
     }
 }
 
@@ -146,9 +148,9 @@ diesel::table! {
         id -> Int4,
         professional_profile_id -> Int4,
         subcategory_id -> Int4,
-        price -> Numeric,
+        price -> Float8,
         #[max_length = 255]
-        subcategory_name -> Nullable<Varchar>,
+        subcategory_name -> Varchar,
     }
 }
 
