@@ -1,11 +1,12 @@
 mod db;
-mod dal{pub mod user_db; pub mod professional_db; pub mod professional_profile_db;}
+mod dal{pub mod user_db; pub mod professional_db; pub mod professional_profile_db; pub mod category_db;}
 mod services
 {
     pub mod user_services;
     pub mod professional_services;
     pub mod firebase_service;
-    pub mod professional_profile_services;}
+    pub mod professional_profile_services;
+    pub mod categories_services;}
 
 // pub mod user_services{
 //     pub mod user_endpoints;
@@ -54,7 +55,8 @@ use dotenv::dotenv;
 use services::{
     user_services::user_endpoints, 
     professional_services::professional_endpoints, 
-    professional_profile_services::professional_profile_endpoints
+    professional_profile_services::professional_profile_endpoints,
+    categories_services::category_endpoints
 };
 
 
@@ -77,7 +79,7 @@ async fn main() -> std::io::Result<()> {
             .configure(user_endpoints::user_routes)
             .configure(professional_endpoints::professional_routes)
             .configure(professional_profile_endpoints::professional_profile_routes)
-            
+            .configure(category_endpoints::category_routes)
             // TODO: add other routes here
     })
     .bind("127.0.0.1:8080")?

@@ -31,22 +31,27 @@ use crate::schema::schema::{
     addresses,
     professional_profiles, 
     categories,
+    subcategories
 };
-use diesel::sql_query;
 use diesel::prelude::*;
 use diesel::result::Error;
 
-
-pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, lng_from_user:f64, conn: &mut PgConnection) -> Result<Vec<ProfessionalProfileDTO>, Error> {
+pub async fn search_services(subcategory_ids_from_user: Vec<i32>, lat_from_user:f64, lng_from_user:f64, conn: &mut PgConnection) -> Result<Vec<ProfessionalProfileDTO>, Error> {
     let radius = 5000.0; // 5 km in meters
-    let raw_sql = r#"
-    WITH RelevantProfiles AS (
-        SELECT DISTINCT professional_profiles.id
-        FROM professional_profiles
-        INNER JOIN service_offerings ON professional_profiles.id = service_offerings.professional_profile_id
-        WHERE service_offerings.subcategory_id = $1 -- or any other provided subcategory_id
-    )
-    SELECT
+    let subcategory_ids_str = subcategory_ids_from_user
+    .iter()
+    .map(|id| id.to_string())
+    .collect::<Vec<_>>()
+    .join(", ");
+
+    let raw_sql = format!(r#"
+        WITH RelevantProfiles AS (
+            SELECT DISTINCT professional_profiles.id
+            FROM professional_profiles
+            INNER JOIN service_offerings ON professional_profiles.id = service_offerings.professional_profile_id
+            WHERE service_offerings.subcategory_id IN ({})
+        )
+        SELECT
         professional_profiles.id,
         professional_profiles.image_url,
         professional_profiles.delivery_enabled,
@@ -72,25 +77,18 @@ pub async fn search_services(subcategory_id_from_user: i32, lat_from_user:f64, l
     WHERE
         ST_DWithin(
             geography(ST_MakePoint(addresses.lng::double precision, addresses.lat::double precision)), 
-            geography(ST_MakePoint($2, $3)), 
-            $4 
+            geography(ST_MakePoint({}, {})), 
+            {} 
         )
     GROUP BY 
         professional_profiles.id, 
         addresses.street, addresses.city, addresses.zip, addresses.lng, addresses.lat, 
         categories.name, professionals.name;
     
-    "#;
+    "#, subcategory_ids_str, lng_from_user, lat_from_user, radius);
 
-    // Query to find professionals based on category and location
-    let professional_profiles_from_db: Vec<ProfessionalProfileDTO> = sql_query(raw_sql)
-        .bind::<diesel::sql_types::Integer, _>(subcategory_id_from_user)
-        .bind::<diesel::sql_types::Double, _>(lng_from_user)
-        .bind::<diesel::sql_types::Double, _>(lat_from_user)
-        .bind::<diesel::sql_types::Double, _>(radius)
-        .load::<ProfessionalProfileDTO>(conn)?; 
-    
-    // let dto_list: Vec<ProfessionalDTO> = transform_to_dto(professional_profiles_from_db);
+    let professional_profiles_from_db: Vec<ProfessionalProfileDTO> = diesel::sql_query(raw_sql)
+        .load::<ProfessionalProfileDTO>(conn)?;
 
 
     
@@ -123,10 +121,19 @@ pub async fn get_profile(conn: &mut PgConnection, profile_id: i32)-> Result<Prof
 
     let service_offerings_from_db = ServiceOffering::belonging_to(&profile)
     .select(ServiceOffering::as_select())
-    .load(conn)?; //TODO:To DTO
+    .load(conn)?;
 
     let service_offerings = service_offerings_from_db.iter()
-    .map(ServiceOfferingDTO::service_offering_to_dto)
+    .map(|service_offering| {
+        // Query to get category_id from subcategory_id
+        let category_id: i32 = subcategories::table
+            .filter(subcategories::id.eq(service_offering.subcategory_id))
+            .select(subcategories::category_id)
+            .first(conn)
+            .expect("Failed to retrieve category_id");
+
+        ServiceOfferingDTO::service_offering_to_dto(service_offering, category_id)
+    })
     .collect();
 
 

@@ -35,14 +35,16 @@ pub struct ProfessionalProfileDetailDTO {
 pub struct ServiceOfferingDTO {
     pub subcategory_id: i32,
     pub subcategory_name: String,
+    pub category_id: i32,
     pub price: f64,  // Ensure this is appropriately represented in your database
 }
 
 impl ServiceOfferingDTO {
-pub fn service_offering_to_dto(service_offering: &ServiceOffering) -> ServiceOfferingDTO {
+pub fn service_offering_to_dto(service_offering: &ServiceOffering, category_id: i32) -> ServiceOfferingDTO {
     ServiceOfferingDTO {
         subcategory_id: service_offering.subcategory_id,
         subcategory_name: service_offering.subcategory_name.clone(),
+        category_id: category_id,
         price: service_offering.price
     }
 }}
