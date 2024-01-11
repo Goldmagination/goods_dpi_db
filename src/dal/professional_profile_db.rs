@@ -46,15 +46,25 @@ pub async fn search_services(subcategory_ids_from_user: Vec<i32>, lat_from_user:
     .map(|id| id.to_string())
     .collect::<Vec<_>>()
     .join(", ");
+    let today = Utc::now().naive_utc().date();
+    let current_day_of_week = today.weekday().num_days_from_sunday() as i32; // Sunday is 0, Saturday is 6
 
     let raw_sql = format!(r#"
-        WITH RelevantProfiles AS (
-            SELECT DISTINCT professional_profiles.id
-            FROM professional_profiles
-            INNER JOIN service_offerings ON professional_profiles.id = service_offerings.professional_profile_id
-            WHERE service_offerings.subcategory_id IN ({})
-        )
-        SELECT
+    WITH RelevantProfiles AS (
+        SELECT DISTINCT professional_profiles.id
+        FROM professional_profiles
+        INNER JOIN service_offerings ON professional_profiles.id = service_offerings.professional_profile_id
+        WHERE service_offerings.subcategory_id IN ({})
+    ), RelevantBusinessHours AS (
+        SELECT 
+            business_hours.professional_profile_id, 
+            business_hours.opening_time, 
+            business_hours.closing_time
+        FROM business_hours
+        WHERE business_hours.day_of_week = {}
+        AND business_hours.is_available = TRUE
+    )
+    SELECT
         professional_profiles.id,
         professional_profiles.image_url,
         professional_profiles.delivery_enabled,
@@ -67,7 +77,9 @@ pub async fn search_services(subcategory_ids_from_user: Vec<i32>, lat_from_user:
         addresses.lat, 
         categories.name AS category_name, 
         professionals.name AS professional_name,
-        COUNT(review.id) AS review_count
+        COUNT(DISTINCT review.id) AS review_count,
+        RelevantBusinessHours.opening_time,
+        RelevantBusinessHours.closing_time
     FROM RelevantProfiles
     INNER JOIN professional_profiles ON RelevantProfiles.id = professional_profiles.id
     INNER JOIN professionals ON professional_profiles.professional_id = professionals.id
@@ -77,6 +89,7 @@ pub async fn search_services(subcategory_ids_from_user: Vec<i32>, lat_from_user:
     INNER JOIN subcategories ON service_offerings.subcategory_id = subcategories.id
     INNER JOIN categories ON subcategories.category_id = categories.id
     LEFT JOIN review ON professional_profiles.id = review.professional_profile_id 
+    INNER JOIN RelevantBusinessHours ON professional_profiles.id = RelevantBusinessHours.professional_profile_id
     WHERE
         ST_DWithin(
             geography(ST_MakePoint(addresses.lng::double precision, addresses.lat::double precision)), 
@@ -86,9 +99,11 @@ pub async fn search_services(subcategory_ids_from_user: Vec<i32>, lat_from_user:
     GROUP BY 
         professional_profiles.id, 
         addresses.street, addresses.city, addresses.zip, addresses.lng, addresses.lat, 
-        categories.name, professionals.name;
-    
-    "#, subcategory_ids_str, lng_from_user, lat_from_user, radius);
+        categories.name, professionals.name,
+        RelevantBusinessHours.opening_time,
+        RelevantBusinessHours.closing_time;
+    "#, subcategory_ids_str, current_day_of_week, lng_from_user, lat_from_user, radius);
+
 
     let professional_profiles_from_db: Vec<ProfessionalProfileDTO> = diesel::sql_query(raw_sql)
         .load::<ProfessionalProfileDTO>(conn)?;

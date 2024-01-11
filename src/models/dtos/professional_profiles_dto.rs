@@ -1,3 +1,4 @@
+use chrono::NaiveTime;
 use serde::{Serialize, Deserialize};
 use diesel::sql_types::*; 
 use diesel::QueryableByName; 
@@ -12,6 +13,12 @@ pub struct ProfessionalProfileDTO {
 
     #[diesel(sql_type = Bool)]
     pub delivery_enabled: bool,
+
+    #[diesel(sql_type = Nullable<Time>)]
+    pub opening_time: Option<NaiveTime>,
+
+    #[diesel(sql_type = Nullable<Time>)]
+    pub closing_time: Option<NaiveTime>,
 
     #[diesel(sql_type = Bool)]
     pub remote_available: bool,
