@@ -1,3 +1,4 @@
+use chrono::NaiveTime;
 use serde::{Serialize, Deserialize};
 use super::review_dto::*;
 use super::address_dto::*;
@@ -10,6 +11,10 @@ pub struct ProfessionalProfileDetailDTO {
     pub professional_name: String,
 
     pub image_url: Option<String>, //TODO: Business hours and background image
+
+    pub opening_time: Option<NaiveTime>,
+
+    pub closing_time: Option<NaiveTime>,
 
     pub delivery_enabled: bool,
 

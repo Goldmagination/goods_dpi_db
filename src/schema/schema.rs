@@ -42,6 +42,17 @@ diesel::table! {
 }
 
 diesel::table! {
+    business_hours (id) {
+        id -> Int4,
+        professional_profile_id -> Int4,
+        day_of_week -> Int4,
+        opening_time -> Nullable<Time>,
+        closing_time -> Nullable<Time>,
+        is_available -> Bool,
+    }
+}
+
+diesel::table! {
     categories (id) {
         id -> Int4,
         name -> Varchar,
@@ -193,6 +204,7 @@ diesel::joinable!(address_assignments -> professional_profiles (professional_pro
 diesel::joinable!(appointment_assignments -> appointments (appointment_id));
 diesel::joinable!(appointments -> professional_profiles (professional_profile_id));
 diesel::joinable!(appointments -> users (customer_id));
+diesel::joinable!(business_hours -> professional_profiles (professional_profile_id));
 diesel::joinable!(chat -> professionals (professional_id));
 diesel::joinable!(chat -> users (user_id));
 diesel::joinable!(message -> chat (chat_id));
@@ -214,6 +226,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     addresses,
     appointment_assignments,
     appointments,
+    business_hours,
     categories,
     chat,
     message,

@@ -8,6 +8,7 @@ use crate::models::
     dtos::address_dto::*,
     professional_aggregate::professional_profile::*,
     professional_aggregate::service_offering::*,
+    professional_aggregate::business_hour::*,
     category_aggregate::category::*,
     review_aggregate::review::*,
     review_aggregate::review_content_assignments::*
@@ -31,8 +32,10 @@ use crate::schema::schema::{
     addresses,
     professional_profiles, 
     categories,
-    subcategories
+    subcategories,
+    business_hours,
 };
+use chrono::{Utc, Datelike};
 use diesel::prelude::*;
 use diesel::result::Error;
 
@@ -142,6 +145,8 @@ pub async fn get_profile(conn: &mut PgConnection, profile_id: i32)-> Result<Prof
     .load::<Review>(conn)
     .optional()?;
 
+    let review_count = reviews_from_db.as_ref().map_or(0, |reviews| reviews.len()) as i64;
+
     let reviews = reviews_from_db.map(|reviews| {
         reviews.iter().map(|review| { 
             let review_content_assignments = ReviewContentAssignment::belonging_to(review)
@@ -152,10 +157,47 @@ pub async fn get_profile(conn: &mut PgConnection, profile_id: i32)-> Result<Prof
             ReviewDTO::review_to_dto(review, &review_content_assignments)
         }).collect::<Vec<ReviewDTO>>()
     });
+    let today = Utc::now().naive_utc().date();
+    let day_of_week = today.weekday().num_days_from_sunday() as i32; // Sunday is 0, Saturday is 6
 
+
+    let country_code = address.as_ref().map(|addr| &addr.state); // Replace with actual field
+
+    // Determine if today is a holiday
+    // let is_today_holiday = match country_code {
+    //     Some(code) => is_holiday(code, today),
+    //     None => false,
+    // };
+    let is_today_holiday = false;
+    // Fetch business hours
+    let business_hour = if is_today_holiday {
+        // Fetch business hours for Ferientag (7)
+        business_hours::table
+            .filter(business_hours::professional_profile_id.eq(profile.id))
+            .filter(business_hours::day_of_week.eq(&7))
+            .first::<BusinessHours>(conn) // Use BusinessHours here
+            .optional()?
+    } else {
+        // Fetch business hours for the current day of the week
+        business_hours::table
+            .filter(business_hours::professional_profile_id.eq(profile.id))
+            .filter(business_hours::day_of_week.eq(&day_of_week))
+            .first::<BusinessHours>(conn) // Use BusinessHours here
+            .optional()?
+    };
+    
+    
+
+// Check if the professional is available today
+let (opening_time, closing_time) = match business_hour {
+    Some(bh) if bh.is_available => (bh.opening_time, bh.closing_time),
+    _ => (None, None), // Not available today
+};
     let final_profile = ProfessionalProfileDetailDTO {
         id: profile.id,
         professional_name: profile.professional_name,
+        opening_time: opening_time,
+        closing_time: closing_time,
         image_url: profile.image_url,
         category_name: category.name,
         credentials: profile.credentials,
@@ -165,7 +207,7 @@ pub async fn get_profile(conn: &mut PgConnection, profile_id: i32)-> Result<Prof
         address: address,
         service_offerings: service_offerings,
         reviews: reviews,
-        review_count: 0
+        review_count: review_count
     };
     Ok(final_profile)
 }

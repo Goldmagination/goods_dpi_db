@@ -31,6 +31,7 @@ mod models {
         pub mod new_professional;
         pub mod professional_profile;
         pub mod service_offering;
+        pub mod business_hour;
     }
     pub mod category_aggregate{
         pub mod category;
