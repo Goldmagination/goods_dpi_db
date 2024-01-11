@@ -13,4 +13,3 @@ pub fn professional_profile_routes(cfg: &mut web::ServiceConfig) {
             ))
     );
 }
-
