@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct ProfessionalProfileQuery {
-    subcategory_id: i32,
+    subcategory_ids: String,
     lat: f64,
     lng: f64,
 }
@@ -32,15 +32,23 @@ pub async fn get_professional_profile_handler(req: HttpRequest, query_info: web:
             return HttpResponse::Unauthorized().body("No token");
         }
     }
-
     let mut conn = db_pool.get().expect("Failed to get DB connection from pool");
-    let subcategory_id = query_info.subcategory_id;
     let lat = query_info.lat;
     let lng = query_info.lng;
+    let subcategory_ids: Result<Vec<i32>, _> = query_info
+        .subcategory_ids
+        .split(',')
+        .map(|s| s.parse::<i32>())
+        .collect();
+
+    let subcategory_ids = match subcategory_ids {
+        Ok(ids) => ids,
+        Err(_) => return HttpResponse::BadRequest().body("Invalid subcategory IDs"),
+    };
     
 
     match professional_profile_db::search_services(
-        subcategory_id, 
+        subcategory_ids, 
         lat, 
         lng, 
         &mut conn,

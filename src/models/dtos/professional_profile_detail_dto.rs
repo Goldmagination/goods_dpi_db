@@ -1,3 +1,4 @@
+use chrono::NaiveTime;
 use serde::{Serialize, Deserialize};
 use super::review_dto::*;
 use super::address_dto::*;
@@ -10,6 +11,10 @@ pub struct ProfessionalProfileDetailDTO {
     pub professional_name: String,
 
     pub image_url: Option<String>, //TODO: Business hours and background image
+
+    pub opening_time: Option<NaiveTime>,
+
+    pub closing_time: Option<NaiveTime>,
 
     pub delivery_enabled: bool,
 
@@ -35,14 +40,16 @@ pub struct ProfessionalProfileDetailDTO {
 pub struct ServiceOfferingDTO {
     pub subcategory_id: i32,
     pub subcategory_name: String,
+    pub category_id: i32,
     pub price: f64,  // Ensure this is appropriately represented in your database
 }
 
 impl ServiceOfferingDTO {
-pub fn service_offering_to_dto(service_offering: &ServiceOffering) -> ServiceOfferingDTO {
+pub fn service_offering_to_dto(service_offering: &ServiceOffering, category_id: i32) -> ServiceOfferingDTO {
     ServiceOfferingDTO {
         subcategory_id: service_offering.subcategory_id,
         subcategory_name: service_offering.subcategory_name.clone(),
+        category_id: category_id,
         price: service_offering.price
     }
 }}

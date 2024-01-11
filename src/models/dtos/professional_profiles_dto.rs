@@ -1,48 +1,52 @@
+use chrono::NaiveTime;
 use serde::{Serialize, Deserialize};
-use super::review_dto::*;
-use super::address_dto::*;
-use crate::models::professional_aggregate::service_offering::*;
+use diesel::sql_types::*; 
+use diesel::QueryableByName; 
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProfessionalProfileDetailDTO {
+#[derive(Debug, QueryableByName, Serialize, Deserialize)]
+pub struct ProfessionalProfileDTO {
+    #[diesel(sql_type = Integer)]
     pub id: i32,
 
-    pub professional_name: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    pub image_url: Option<String>,
 
-    pub image_url: Option<String>, //TODO: Business hours and background image
-
+    #[diesel(sql_type = Bool)]
     pub delivery_enabled: bool,
 
-    pub remote_available: bool,
-    
-    pub credentials: Option<String>,
+    #[diesel(sql_type = Nullable<Time>)]
+    pub opening_time: Option<NaiveTime>,
 
+    #[diesel(sql_type = Nullable<Time>)]
+    pub closing_time: Option<NaiveTime>,
+
+    #[diesel(sql_type = Bool)]
+    pub remote_available: bool,
+
+    #[diesel(sql_type = Nullable<Float8>)]
     pub average_rating: Option<f64>,  // Nullable to handle cases where it might be NaN or NULL
 
-    pub address: Option<AddressDTO>,
-
-    pub category_name: String,
-
-    pub service_offerings: Vec<ServiceOfferingDTO>,
-
+    #[diesel(sql_type = BigInt)]
     pub review_count: i64,
 
-    pub reviews: Option<Vec<ReviewDTO>>,
+    #[diesel(sql_type = Text)]
+    pub street: String,
 
+    #[diesel(sql_type = Text)]
+    pub city: String,
+
+    #[diesel(sql_type = Text)]
+    pub zip: String,
+
+    #[diesel(sql_type = Float8)]
+    pub lng: f64, 
+
+    #[diesel(sql_type = Float8)]
+    pub lat: f64,
+
+    #[diesel(sql_type = Text)]
+    pub category_name: String,
+    
+    #[diesel(sql_type = Text)]
+    pub professional_name: String,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ServiceOfferingDTO {
-    pub subcategory_id: i32,
-    pub subcategory_name: String,
-    pub price: f64,  // Ensure this is appropriately represented in your database
-}
-
-impl ServiceOfferingDTO {
-pub fn service_offering_to_dto(service_offering: &ServiceOffering) -> ServiceOfferingDTO {
-    ServiceOfferingDTO {
-        subcategory_id: service_offering.subcategory_id,
-        subcategory_name: service_offering.subcategory_name.clone(),
-        price: service_offering.price
-    }
-}}
