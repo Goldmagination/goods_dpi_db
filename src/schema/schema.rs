@@ -91,24 +91,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    order_subcategories (id) {
-        id -> Int4,
-        order_id -> Int4,
-        subcategory_id -> Int4,
-    }
-}
-
-diesel::table! {
-    orders (id) {
-        id -> Int4,
-        user_id -> Int4,
-        creation_time -> Timestamp,
-        description -> Nullable<Text>,
-        address_id -> Int4,
-    }
-}
-
-diesel::table! {
     professional_profiles (id) {
         id -> Int4,
         professional_id -> Int4,
@@ -189,6 +171,25 @@ diesel::table! {
 }
 
 diesel::table! {
+    tasks (id) {
+        id -> Int4,
+        user_id -> Int4,
+        creation_time -> Timestamp,
+        description -> Nullable<Text>,
+        address_id -> Nullable<Int4>,
+        price -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
+    tasks_subcategories (id) {
+        id -> Int4,
+        task_id -> Int4,
+        subcategory_id -> Int4,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Int4,
         name -> Varchar,
@@ -209,10 +210,6 @@ diesel::joinable!(chat -> professional_profiles (professional_profile_id));
 diesel::joinable!(chat -> users (user_id));
 diesel::joinable!(message -> chat (chat_id));
 diesel::joinable!(message_assignments -> message (message_id));
-diesel::joinable!(order_subcategories -> orders (order_id));
-diesel::joinable!(order_subcategories -> subcategories (subcategory_id));
-diesel::joinable!(orders -> addresses (address_id));
-diesel::joinable!(orders -> users (user_id));
 diesel::joinable!(professional_profiles -> professionals (professional_id));
 diesel::joinable!(review -> professional_profiles (professional_profile_id));
 diesel::joinable!(review -> users (user_id));
@@ -220,6 +217,10 @@ diesel::joinable!(review_content_assignments -> review (review_id));
 diesel::joinable!(service_offerings -> professional_profiles (professional_profile_id));
 diesel::joinable!(service_offerings -> subcategories (subcategory_id));
 diesel::joinable!(subcategories -> categories (category_id));
+diesel::joinable!(tasks -> addresses (address_id));
+diesel::joinable!(tasks -> users (user_id));
+diesel::joinable!(tasks_subcategories -> subcategories (subcategory_id));
+diesel::joinable!(tasks_subcategories -> tasks (task_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     address_assignments,
@@ -231,8 +232,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     chat,
     message,
     message_assignments,
-    order_subcategories,
-    orders,
     professional_profiles,
     professionals,
     review,
@@ -240,5 +239,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     service_offerings,
     spatial_ref_sys,
     subcategories,
+    tasks,
+    tasks_subcategories,
     users,
 );
