@@ -1,12 +1,13 @@
 mod db;
-mod dal{pub mod user_db; pub mod professional_db; pub mod professional_profile_db; pub mod category_db;}
+mod dal{pub mod user_db; pub mod professional_db; pub mod professional_profile_db; pub mod category_db; pub mod chat_db;}
 mod services
 {
     pub mod user_services;
     pub mod professional_services;
     pub mod firebase_service;
     pub mod professional_profile_services;
-    pub mod categories_services;}
+    pub mod categories_services;
+    pub mod chat_services;}
 
 // pub mod user_services{
 //     pub mod user_endpoints;
@@ -45,6 +46,12 @@ mod models {
     {
         pub mod appointment_assignment;
     }
+    pub mod chat_aggregate
+    {
+        pub mod chat;
+        pub mod message;
+        pub mod message_assignment;
+    }
 }
 mod schema {pub mod schema;}
 
@@ -57,7 +64,8 @@ use services::{
     user_services::user_endpoints, 
     professional_services::professional_endpoints, 
     professional_profile_services::professional_profile_endpoints,
-    categories_services::category_endpoints
+    categories_services::category_endpoints,
+    chat_services::chat_endpoints
 };
 
 
@@ -81,9 +89,10 @@ async fn main() -> std::io::Result<()> {
             .configure(professional_endpoints::professional_routes)
             .configure(professional_profile_endpoints::professional_profile_routes)
             .configure(category_endpoints::category_routes)
+            .configure(chat_endpoints::chat_routes)
             // TODO: add other routes here
     })
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }

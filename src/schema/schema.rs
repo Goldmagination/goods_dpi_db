@@ -64,8 +64,7 @@ diesel::table! {
     chat (id) {
         id -> Int4,
         user_id -> Int4,
-        professional_id -> Int4,
-        title -> Varchar,
+        professional_profile_id -> Int4,
         last_message_time -> Timestamp,
     }
 }
@@ -78,6 +77,7 @@ diesel::table! {
         text -> Text,
         timestamp -> Timestamp,
         is_read -> Bool,
+        receiver_id -> Int4,
     }
 }
 
@@ -205,7 +205,7 @@ diesel::joinable!(appointment_assignments -> appointments (appointment_id));
 diesel::joinable!(appointments -> professional_profiles (professional_profile_id));
 diesel::joinable!(appointments -> users (customer_id));
 diesel::joinable!(business_hours -> professional_profiles (professional_profile_id));
-diesel::joinable!(chat -> professionals (professional_id));
+diesel::joinable!(chat -> professional_profiles (professional_profile_id));
 diesel::joinable!(chat -> users (user_id));
 diesel::joinable!(message -> chat (chat_id));
 diesel::joinable!(message_assignments -> message (message_id));
