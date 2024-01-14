@@ -43,14 +43,6 @@ mod models {
         pub mod review;
         pub mod review_content_assignments;
     }
-    pub mod category_aggregate{
-        pub mod category;
-        pub mod sub_category;
-    }
-    pub mod review_aggregate{
-        pub mod review;
-        pub mod review_content_assignments;
-    }
     pub mod appointment_aggregate
     {
         pub mod appointment_assignment;
