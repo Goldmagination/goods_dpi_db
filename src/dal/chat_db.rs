@@ -4,6 +4,47 @@ use chrono::Utc;
 use diesel::prelude::*;
 use diesel::result::Error;
 
+// pub fn get_chats_for_user(conn: &mut PgConnection, user_id: i32) -> QueryResult<Vec<ChatDTO>> {
+    // sql_function!(fn max(x: Timestamp) -> Nullable<Timestamp>);
+    // let latest_messages_cte = diesel::sql_query(
+        // "WITH latest_messages AS (
+            // SELECT 
+                // chat_id, 
+                // MAX(timestamp) as latest_timestamp
+            // FROM 
+                // message
+            // GROUP BY 
+                // chat_id
+        // )
+        // SELECT 
+            // chat.*, 
+            // professional_profiles.professional_name, 
+            // professional_profiles.image_url, 
+            // message.text
+        // FROM 
+            // chat
+        // INNER JOIN 
+            // professional_profiles ON chat.professional_profile_id = professional_profiles.id
+        // LEFT JOIN 
+            // latest_messages ON chat.id = latest_messages.chat_id
+        // LEFT JOIN 
+            // message ON chat.id = message.chat_id AND latest_messages.latest_timestamp = message.timestamp
+        // WHERE 
+            // chat.user_id = $1"
+    // ).bind::<Integer, _>(user_id);
+
+    // let chats_with_details = latest_messages_cte
+        // .load::<(Chat, String, Option<String>, Option<String>)>(conn)?;
+
+    
+
+
+    // let chat_dtos = chats_with_details.into_iter().map(|(chat, title, image_url, last_message)| {
+        // ChatDTO::chat_to_dto(&chat, title, last_message.unwrap_or_default(), image_url)
+    // }).collect();
+
+    // Ok(chat_dtos)
+// }
 
 // Method to retrieve the list of chats for a user
 pub fn get_chats_for_user(conn: &mut PgConnection, user_id: i32) -> QueryResult<Vec<Chat>> {

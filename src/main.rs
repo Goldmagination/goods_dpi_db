@@ -22,6 +22,7 @@ mod models {
         pub mod review_dto;
         pub mod address_dto;
         pub mod subcategory_dto;
+        pub mod chat_dto;
     }
     pub mod user_aggregate{
         pub mod user;
