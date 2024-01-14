@@ -12,3 +12,22 @@ pub fn establish_connection() -> Pool {
         .build(manager)
         .expect("Failed to create pool.")
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    #[test]
+    fn test_establish_connection_success() {
+        env::set_var("DATABASE_URL", "postgres://username:password@localhost/test_db");
+        let pool = establish_connection();
+        assert!(pool.get().is_ok());
+    }
+
+    #[test]
+    #[should_panic(expected = "DATABASE_URL must be set")]
+    fn test_establish_connection_no_env_var() {
+        env::remove_var("DATABASE_URL");
+        establish_connection();
+    }
+}
