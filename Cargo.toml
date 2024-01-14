@@ -8,7 +8,9 @@ edition = "2021"
 [dependencies]
 tokio = "1.35.0"
 diesel = {version = "2.1.4", features = ["postgres", "r2d2", "chrono"] }
+actix = "0.13.1"
 actix-web = "4.4.0"
+actix-web-actors = "4.2.0"
 actix-cors = "0.6.5"
 chrono = { version = "0.4.31", features = ["serde"] }
 serde = { version = "1.0.193", features = ["derive"] }
