@@ -186,7 +186,7 @@ pub async fn get_profile(conn: &mut PgConnection, profile_id: i32)-> Result<Prof
     let is_today_holiday = false;
     // Fetch business hours
     let business_hour = if is_today_holiday {
-        // Fetch business hours for Ferientag (7)
+        // Fetch business hours for holidays (7)
         business_hours::table
             .filter(business_hours::professional_profile_id.eq(profile.id))
             .filter(business_hours::day_of_week.eq(&7))
