@@ -25,6 +25,7 @@ mod models {
     pub mod dtos {
         pub mod address_dto;
         pub mod chat_dto;
+        pub mod message_dto;
         pub mod professional_profile_detail_dto;
         pub mod professional_profiles_dto;
         pub mod review_dto;
@@ -66,6 +67,7 @@ use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 use db::Pool;
 use dotenv::dotenv;
+use log::*;
 
 use services::{
     categories_services::category_endpoints, chat_services::chat_endpoints,

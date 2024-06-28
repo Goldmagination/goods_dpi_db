@@ -1,66 +1,121 @@
+use std::collections::HashMap;
+
+use crate::db::Pool;
 use crate::models::chat_aggregate::{
     chat::Chat, chat::ChatDTO, chat::NewChat, message::Message, message::NewMessage,
 };
-use crate::schema::schema::{chat, message, professional_profiles};
-use chrono::Utc;
-use diesel::dsl::*;
-use diesel::pg::expression::dsl::any;
+use crate::models::dtos::message_dto::{MessageAssignmentDTO, MessageDTO};
+use crate::schema::schema::{chat, message, message_assignments, professional_profiles};
+use actix_web::{web, Error as ActixError, HttpResponse};
+use chrono::{NaiveDateTime, Utc};
 use diesel::prelude::*;
-use diesel::result::Error;
 
-pub fn get_chats_for_user(conn: &mut PgConnection, user_id: i32) -> QueryResult<Vec<ChatDTO>> {
-    // First, get all chat IDs for the user
-    let chat_ids: Vec<i32> = chat::table
-        .filter(chat::user_id.eq(user_id))
+use uuid::Uuid;
+
+pub fn get_messages_for_chat(
+    conn: &mut PgConnection,
+    chat_id_val: i32,
+    limit_val: i64,
+    offset_val: i64,
+) -> QueryResult<Vec<Message>> {
+    message::table
+        .filter(message::chat_id.eq(chat_id_val))
+        .order(message::timestamp.desc())
+        .limit(limit_val)
+        .offset(offset_val)
+        .load::<Message>(conn)
+}
+
+pub fn get_chats_for_user(conn: &mut PgConnection, user_uid: &Uuid) -> QueryResult<Vec<ChatDTO>> {
+    // Get all chat IDs for the user
+    let chat_uids: Vec<i32> = chat::table
+        .filter(chat::user_uid.eq(user_uid))
         .select(chat::id)
         .load(conn)?;
 
-    // Get the latest message for each chat
-    let latest_messages = message::table
-        .filter(message::chat_id.eq(any(chat_ids.clone())))
-        .group_by(message::chat_id)
+    // Get the latest messages for each chat
+    let latest_messages: Vec<(i32, i32, Uuid, String, NaiveDateTime, bool, Uuid)> = message::table
+        .filter(message::chat_id.eq_any(&chat_uids))
+        .order((message::chat_id, message::timestamp.desc()))
         .select((
+            message::id,
             message::chat_id,
-            max(message::timestamp),
-            max(message::text),
+            message::sender_uid,
+            message::text,
+            message::timestamp,
+            message::is_read,
+            message::receiver_uid,
         ))
-        .load::<(i32, Option<chrono::NaiveDateTime>, Option<String>)>(conn)?;
+        .load(conn)?;
 
-    // Create a HashMap for quick lookup of latest messages
-    let latest_messages_map: std::collections::HashMap<
-        i32,
-        (Option<chrono::NaiveDateTime>, Option<String>),
-    > = latest_messages
+    // Get the message assignments
+    let message_ids: Vec<i32> = latest_messages.iter().map(|msg| msg.0).collect();
+    let message_assignments: Vec<(i32, String)> = message_assignments::table
+        .filter(message_assignments::message_id.eq_any(&message_ids))
+        .select((
+            message_assignments::message_id,
+            message_assignments::image_url,
+        ))
+        .load(conn)?;
+
+    // Create a HashMap for quick lookup of message assignments
+    let message_assignments_map: HashMap<i32, MessageAssignmentDTO> = message_assignments
         .into_iter()
-        .map(|(chat_id, timestamp, text)| (chat_id, (timestamp, text)))
+        .map(|(message_id, image_url)| {
+            (
+                message_id,
+                MessageAssignmentDTO::to_dto(message_id, image_url),
+            )
+        })
         .collect();
 
+    // Create a HashMap for quick lookup of latest messages and format them to DTO
+    let latest_messages_map: HashMap<i32, Vec<MessageDTO>> = latest_messages.into_iter().fold(
+        HashMap::new(),
+        |mut acc, (id, chat_id, sender_id, text, timestamp, is_read, receiver_id)| {
+            let assignment = message_assignments_map.get(&id).cloned();
+            acc.entry(chat_id)
+                .or_insert_with(Vec::new)
+                .push(MessageDTO::to_dto(
+                    id,
+                    chat_id,
+                    sender_id,
+                    text,
+                    timestamp,
+                    is_read,
+                    receiver_id,
+                    assignment,
+                ));
+            acc
+        },
+    );
+
     // Now get all chats with their associated professional profiles
-    let chats_with_profiles = chat::table
-        .inner_join(professional_profiles::table)
-        .filter(chat::user_id.eq(user_id))
-        .select((
-            chat::all_columns,
-            professional_profiles::professional_name,
-            professional_profiles::image_url,
-        ))
-        .load::<(Chat, String, Option<String>)>(conn)?;
+    let chats_with_profiles: Vec<(Chat, String, Option<String>)> =
+        chat::table
+            .inner_join(professional_profiles::table.on(
+                chat::professional_profile_uid.eq(professional_profiles::professional_profile_uid),
+            ))
+            .filter(chat::user_uid.eq(user_uid))
+            .select((
+                chat::all_columns,
+                professional_profiles::professional_name,
+                professional_profiles::image_url,
+            ))
+            .load(conn)?;
 
     // Combine all the data into ChatDTOs
     let chat_dtos = chats_with_profiles
         .into_iter()
         .map(|(chat, professional_name, image_url)| {
-            let (_, last_message) = latest_messages_map
-                .get(&chat.id)
-                .cloned()
-                .unwrap_or((None, None));
+            let messages = latest_messages_map.get(&chat.id).cloned();
             ChatDTO {
                 id: chat.id,
-                user_id: chat.user_id,
-                professional_profile_id: chat.professional_profile_id,
+                user_id: chat.user_uid,
+                professional_profile_id: chat.professional_profile_uid,
                 professional_name,
                 image_url,
-                last_message: last_message.unwrap_or_default(),
+                messages,
             }
         })
         .collect();
@@ -68,168 +123,78 @@ pub fn get_chats_for_user(conn: &mut PgConnection, user_id: i32) -> QueryResult<
     Ok(chat_dtos)
 }
 
-/*
-pub fn get_chats_for_user(conn: &mut PgConnection, user_id: i32) -> QueryResult<Vec<ChatDTO>> {
-    sql_function!(fn max(x: Timestamp) -> Nullable<Timestamp>);
-    let latest_messages_cte = diesel::sql_query(
-         "WITH latest_messages AS (
-             SELECT
-                 chat_id,
-                 MAX(timestamp) as latest_timestamp
-             FROM
-                 message
-             GROUP BY
-                 chat_id
-         )
-         SELECT
-             chat.*,
-             professional_profiles.professional_name,
-             professional_profiles.image_url,
-             message.text
-         FROM
-             chat
-         INNER JOIN
-             professional_profiles ON chat.professional_profile_id = professional_profiles.id
-         LEFT JOIN
-             latest_messages ON chat.id = latest_messages.chat_id
-         LEFT JOIN
-             message ON chat.id = message.chat_id AND latest_messages.latest_timestamp = message.timestamp
-         WHERE
-             chat.user_id = $1"
-     ).bind::<Integer, _>(user_id);
-
-    let chats_with_details =
-        latest_messages_cte.load::<(Chat, String, Option<String>, Option<String>)>(conn)?;
-
-    let chat_dtos = chats_with_details
-        .into_iter()
-        .map(|(chat, title, image_url, last_message)| {
-            ChatDTO::chat_to_dto(&chat, title, last_message.unwrap_or_default(), image_url)
-        })
-        .collect();
-
-    Ok(chat_dtos)
-}
-// */
-/*
-// Method to retrieve the list of chats for a user
-pub fn get_chats_for_user(conn: &mut PgConnection, user_id: i32) -> QueryResult<Vec<Chat>> {
-    chat::table
-        .filter(chat::user_id.eq(user_id))
-        .load::<Chat>(conn)
-}
-// */
-pub fn get_messages_for_chat(conn: &mut PgConnection, chat_id: i32) -> QueryResult<Vec<Message>> {
-    message::table
-        .filter(message::chat_id.eq(chat_id))
-        .load::<Message>(conn)
-}
-
-pub fn get_messages_for_sender_and_receiver(
-    conn: &mut PgConnection,
-    user_id: i32,
-    professional_profile_id: i32,
-) -> QueryResult<Vec<Message>> {
-    let chat_id = chat::table
-        .filter(
-            chat::user_id
-                .eq(user_id)
-                .and(chat::professional_profile_id.eq(professional_profile_id)),
-        )
-        .or_filter(
-            chat::user_id
-                .eq(professional_profile_id)
-                .and(chat::professional_profile_id.eq(user_id)),
-        )
-        .select(chat::id)
-        .first::<i32>(conn);
-
-    match chat_id {
-        Ok(chat_id) => {
-            // If chat ID is found, fetch messages for that chat
-            message::table
-                .filter(message::chat_id.eq(chat_id))
-                .load::<Message>(conn)
-        }
-        Err(_) => {
-            // If chat ID is not found, return empty vector (no messages)
-            Ok(vec![])
-        }
-    }
-}
-
 pub async fn send_message(
+    pool: web::Data<Pool>,
+    sender_id: Uuid,
+    receiver_id: Uuid,
+    text: String,
+) -> Result<HttpResponse, ActixError> {
+    let mut conn = pool.get().map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Could not get db connection: {}", e))
+    })?;
+
+    web::block(move || -> Result<(), diesel::result::Error> {
+        conn.transaction(|conn| {
+            let chat_id = get_or_create_chat(conn, sender_id, receiver_id)?;
+
+            let new_message = NewMessage {
+                chat_id,
+                sender_uid: sender_id,
+                receiver_uid: receiver_id,
+                text,
+                timestamp: Utc::now().naive_utc(),
+                is_read: false,
+            };
+
+            diesel::insert_into(message::table)
+                .values(&new_message)
+                .execute(conn)?;
+
+            diesel::update(chat::table.find(chat_id))
+                .set(chat::last_message_time.eq(new_message.timestamp))
+                .execute(conn)?;
+
+            Ok(())
+        })
+    })
+    .await
+    .map_err(|e| actix_web::error::ErrorInternalServerError(format!("Database error: {}", e)))
+    .map(|_| HttpResponse::Ok().finish())
+}
+
+fn get_or_create_chat(
     conn: &mut PgConnection,
-    sender_id: i32,
-    receiver_id: i32,
-    text: &str,
-) -> Result<(), Error> {
-    // Check if a chat between sender_id and receiver_id exists
-    let existing_chat_id = chat::table
+    user_uid: Uuid,
+    professional_profile_uid: Uuid,
+) -> QueryResult<i32> {
+    let existing_chat = chat::table
         .filter(
-            chat::user_id
-                .eq(sender_id)
-                .and(chat::professional_profile_id.eq(receiver_id)),
+            chat::user_uid
+                .eq(user_uid)
+                .and(chat::professional_profile_uid.eq(professional_profile_uid)),
         )
         .or_filter(
-            chat::user_id
-                .eq(receiver_id)
-                .and(chat::professional_profile_id.eq(sender_id)),
+            chat::user_uid
+                .eq(professional_profile_uid)
+                .and(chat::professional_profile_uid.eq(user_uid)),
         )
         .select(chat::id)
         .first::<i32>(conn)
         .optional()?;
 
-    let chat_id = match existing_chat_id {
-        Some(id) => id,
+    match existing_chat {
+        Some(id) => Ok(id),
         None => {
-            // If no chat exists, create a new one and get its ID
-            create_new_chat(conn, sender_id, receiver_id).await?
+            let new_chat = NewChat {
+                user_uid,
+                professional_profile_uid,
+                last_message_time: Utc::now().naive_utc(),
+            };
+
+            diesel::insert_into(chat::table)
+                .values(&new_chat)
+                .returning(chat::id)
+                .get_result::<i32>(conn)
         }
-    };
-    // Create and save the new message
-    let new_message = NewMessage {
-        chat_id,
-        sender_id,
-        receiver_id,
-        text: text.to_string(),
-        timestamp: Utc::now().naive_utc(),
-        is_read: false,
-    };
-    save_message_async(conn, new_message).await?;
-
-    // Additional logic to notify the receiver or update the chat UI can be added here
-
-    Ok(())
-}
-
-async fn create_new_chat(
-    conn: &mut PgConnection,
-    user_id: i32,
-    professional_profile_id: i32,
-) -> Result<i32, Error> {
-    let new_chat = NewChat {
-        user_id,
-        professional_profile_id,
-        last_message_time: Utc::now().naive_utc(),
-    };
-
-    let chat_id = diesel::insert_into(chat::table)
-        .values(&new_chat)
-        .returning(chat::id)
-        .get_result::<i32>(conn)
-        .expect("Error inserting new chat");
-
-    Ok(chat_id)
-}
-
-async fn save_message_async(conn: &mut PgConnection, new_message: NewMessage) -> Result<(), Error> {
-    diesel::insert_into(message::table)
-        .values(&new_message)
-        .execute(conn)?;
-
-    diesel::update(chat::table.filter(chat::id.eq(new_message.chat_id)))
-        .set(chat::last_message_time.eq(new_message.timestamp))
-        .execute(conn)?;
-    Ok(())
+    }
 }

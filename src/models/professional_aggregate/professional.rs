@@ -1,6 +1,7 @@
-use diesel::prelude::*;
-use serde::{Serialize, Deserialize};
 use crate::schema::schema::professionals;
+use diesel::prelude::*;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 #[derive(Queryable, Serialize, Deserialize)]
 #[diesel(table_name = professionals)]
 pub struct Professional {
@@ -16,5 +17,5 @@ pub struct Professional {
 pub struct NewProfessional {
     pub email: String,
     pub name: String,
-    pub user_uid: String
+    pub user_uid: String,
 }

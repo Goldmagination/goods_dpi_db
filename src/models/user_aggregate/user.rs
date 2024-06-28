@@ -1,14 +1,15 @@
-use diesel::prelude::*;
-use serde::{Serialize, Deserialize};
 use crate::schema::schema::users;
+use diesel::prelude::*;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Queryable, Serialize, Deserialize)]
 pub struct User {
     pub id: i32,
     pub name: String,
     pub email: String,
-    pub user_uid: String,
     pub image_url: Option<String>,
+    pub user_uid: Uuid,
 }
 
 #[derive(Insertable)]
@@ -16,5 +17,5 @@ pub struct User {
 pub struct NewUser {
     pub email: String,
     pub name: String,
-    pub user_uid: String
+    pub user_uid: Uuid,
 }
