@@ -1,7 +1,6 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
-use uuid::Uuid;
 
 const FIREBASE_SIGN_UP_URL: &str = "https://identitytoolkit.googleapis.com/v1/accounts:signUp";
 const FIREBASE_VALIDATE_TOKEN_URL: &str =
@@ -20,7 +19,7 @@ pub struct FirebaseRegisterResponse {
     pub email: String,
     pub refreshToken: String,
     pub expiresIn: String,
-    pub localId: Uuid, // The UID
+    pub localId: String, // The UID
 }
 
 pub async fn create_firebase_user(

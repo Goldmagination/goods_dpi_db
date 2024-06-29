@@ -2,14 +2,13 @@ use crate::dal::chat_db;
 use actix::{fut::ActorFutureExt, Actor, ActorContext, AsyncContext, StreamHandler};
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
-use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use chrono::Utc;
+use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use log::{error, info};
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::sync::Arc;
-use uuid::Uuid;
 
 const FIREBASE_VALIDATE_TOKEN_URL: &str =
     "https://identitytoolkit.googleapis.com/v1/accounts:lookup";
@@ -17,19 +16,38 @@ const FIREBASE_VALIDATE_TOKEN_URL: &str =
 #[derive(Serialize, Deserialize, Debug)]
 struct IncomingMessage {
     message: String,
-    receiver_id: Uuid,
+    receiver_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct OutgoingMessage {
-    sender_id: Uuid,
-    receiver_id: Uuid,
+    sender_uid: String,
+    receiver_uid: String,
     text: String,
+    timestamp: chrono::DateTime<Utc>,
+}
+
+#[derive(Serialize)]
+struct ApiResponse<T> {
+    status: String,
+    message: T,
+}
+
+#[derive(Serialize)]
+struct SuccessMessage {
+    message_id: i32,
+    content: OutgoingMessage,
+}
+
+#[derive(Serialize)]
+struct ErrorMessage {
+    error: String,
+    details: Option<String>,
 }
 
 struct ChatWebSocket {
-    db_pool: Arc<Pool<ConnectionManager<PgConnection>>>,
-    user_uuid: Uuid,
+    db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
+    user_uid: String,
 }
 
 impl Actor for ChatWebSocket {
@@ -63,24 +81,39 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ChatWebSocket {
 
 impl ChatWebSocket {
     fn handle_text_message(&mut self, text: web::Bytes, ctx: &mut <Self as Actor>::Context) {
-        let db_pool = Arc::clone(&self.db_pool);
-        let user_uuid = self.user_uuid;
+        let db_pool = self.db_pool.clone();
+        let user_uid = self.user_uid.clone();
         let text_str = String::from_utf8_lossy(&text).to_string();
 
         let fut = async move {
             match serde_json::from_str::<IncomingMessage>(&text_str) {
                 Ok(parsed_message) => {
-                    match Self::process_message(db_pool.into(), user_uuid, parsed_message).await {
+                    match Self::process_message(db_pool, user_uid, parsed_message).await {
                         Ok(response) => response,
                         Err(e) => {
                             error!("Failed to process message: {:?}", e);
-                            "Error: Failed to process message".to_string()
+                            // Create a proper error response
+                            serde_json::to_string(&ApiResponse {
+                                status: "error".to_string(),
+                                message: ErrorMessage {
+                                    error: "Failed to process message".to_string(),
+                                    details: Some(e.to_string()),
+                                },
+                            })
+                            .unwrap()
                         }
                     }
                 }
                 Err(e) => {
                     error!("Failed to parse message: {:?}", e);
-                    "Error: Invalid message format".to_string()
+                    serde_json::to_string(&ApiResponse {
+                        status: "error".to_string(),
+                        message: ErrorMessage {
+                            error: "Invalid message format".to_string(),
+                            details: Some(e.to_string()),
+                        },
+                    })
+                    .unwrap()
                 }
             }
         };
@@ -95,18 +128,34 @@ impl ChatWebSocket {
 
     async fn process_message(
         db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
-        user_uuid: Uuid,
+        user_uid: String,
         parsed_message: IncomingMessage,
     ) -> Result<String, Error> {
-        chat_db::send_message(
-            db_pool.clone(),
-            user_uuid,
-            parsed_message.receiver_id,
-            parsed_message.message,
+        let message_id = chat_db::send_message(
+            db_pool,
+            user_uid.clone(),
+            parsed_message.receiver_id.clone(),
+            parsed_message.message.clone(),
         )
-        .await?; // Ensure you await the async function call
+        .await?;
 
-        Ok("Message processed successfully".to_string())
+        let outgoing_message = OutgoingMessage {
+            sender_uid: user_uid,
+            receiver_uid: parsed_message.receiver_id,
+            text: parsed_message.message,
+            timestamp: Utc::now(),
+        };
+
+        let success_message = SuccessMessage {
+            message_id,
+            content: outgoing_message,
+        };
+
+        Ok(serde_json::to_string(&ApiResponse {
+            status: "success".to_string(),
+            message: success_message,
+        })
+        .unwrap())
     }
 }
 
@@ -115,12 +164,12 @@ pub async fn chat_route(
     stream: web::Payload,
     db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
 ) -> Result<HttpResponse, Error> {
-    let user_uuid = extract_user_uuid(&req)?;
+    let user_uid = extract_user_uuid(&req)?;
 
     ws::start(
         ChatWebSocket {
-            db_pool: Arc::new(db_pool.get_ref().clone()),
-            user_uuid,
+            db_pool: db_pool.clone(),
+            user_uid,
         },
         &req,
         stream,
@@ -129,7 +178,7 @@ pub async fn chat_route(
 
 pub async fn get_user_chats(
     req: HttpRequest,
-    user_uuid: web::Path<Uuid>,
+    user_uid: web::Path<String>,
     db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
 ) -> impl Responder {
     if !verify_token_from_request(&req).await {
@@ -137,7 +186,7 @@ pub async fn get_user_chats(
     }
 
     let mut conn = db_pool.get().expect("Failed to get DB connection");
-    match chat_db::get_chats_for_user(&mut conn, &user_uuid) {
+    match chat_db::get_chats_for_user(&mut conn, &user_uid) {
         Ok(chats) => HttpResponse::Ok().json(chats),
         Err(_) => HttpResponse::InternalServerError().finish(),
     }
@@ -214,9 +263,9 @@ fn extract_token_from_auth_header(auth_header: Option<&HeaderValue>) -> Option<S
         .map(String::from)
 }
 
-// You need to implement this function to extract the user UUID from the request
-fn extract_user_uuid(req: &HttpRequest) -> Result<Uuid, Error> {
-    // Implementation depends on how you're storing the user UUID in the request
-    // This is just a placeholder
-    unimplemented!()
+fn extract_user_uuid(req: &HttpRequest) -> Result<String, Error> {
+    req.match_info()
+        .get("user_id")
+        .ok_or_else(|| actix_web::error::ErrorBadRequest("Missing user_id parameter"))
+        .map(|id| id.to_string())
 }

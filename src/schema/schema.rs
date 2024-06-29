@@ -64,8 +64,10 @@ diesel::table! {
     chat (id) {
         id -> Int4,
         last_message_time -> Timestamp,
-        user_uid -> Uuid,
-        professional_profile_uid -> Uuid,
+        #[max_length = 255]
+        user_uid -> Varchar,
+        #[max_length = 255]
+        professional_profile_uid -> Varchar,
     }
 }
 
@@ -76,8 +78,10 @@ diesel::table! {
         text -> Text,
         timestamp -> Timestamp,
         is_read -> Bool,
-        receiver_uid -> Uuid,
-        sender_uid -> Uuid,
+        #[max_length = 255]
+        receiver_uid -> Varchar,
+        #[max_length = 255]
+        sender_uid -> Varchar,
     }
 }
 
@@ -102,7 +106,8 @@ diesel::table! {
         average_rating -> Nullable<Float8>,
         remote_available -> Bool,
         professional_name -> Varchar,
-        professional_profile_uid -> Uuid,
+        #[max_length = 255]
+        professional_profile_uid -> Varchar,
     }
 }
 
@@ -111,9 +116,10 @@ diesel::table! {
         id -> Int4,
         name -> Varchar,
         email -> Varchar,
-        user_uid -> Varchar,
         #[max_length = 255]
         image_url -> Nullable<Varchar>,
+        #[max_length = 255]
+        user_uid -> Varchar,
     }
 }
 
@@ -197,7 +203,8 @@ diesel::table! {
         email -> Varchar,
         #[max_length = 255]
         image_url -> Nullable<Varchar>,
-        user_uid -> Uuid,
+        #[max_length = 255]
+        user_uid -> Varchar,
     }
 }
 

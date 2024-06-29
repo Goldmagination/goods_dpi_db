@@ -1,29 +1,31 @@
-use diesel::prelude::*;
-use serde::{Deserialize, Serialize};
-use chrono::{NaiveDateTime};
+use crate::models::chat_aggregate::chat::*;
+use crate::models::dtos::message_dto::MessageDTO;
+use serde::Serialize;
 
-use crate::models::
-{
-    chat_aggregate::chat::*,
-};
-
-#[derive(Debug, Serialize, Deserialize, )]
+#[derive(Serialize)]
 pub struct ChatDTO {
     pub id: i32,
-    pub professional_profile_name: String,
-    pub last_message: String,
-    pub professional_profile_image_url: Option<String>,
-    pub time: NaiveDateTime,
+    pub user_id: String,
+    pub professional_profile_id: String,
+    pub professional_name: String,
+    pub image_url: Option<String>,
+    pub messages: Option<Vec<MessageDTO>>,
 }
 
 impl ChatDTO {
-    pub fn chat_to_dto(chat: &Chat, professional_profile_name: String, last_message:String, image_url:Option<String>) -> ChatDTO {
+    pub fn chat_to_dto(
+        chat: Chat,
+        professional_name: String,
+        image_url: Option<String>,
+        messages: Option<Vec<MessageDTO>>,
+    ) -> ChatDTO {
         ChatDTO {
             id: chat.id,
-            professional_profile_name: professional_profile_name.clone(),
-            last_message:last_message.clone(),
-            time:chat.last_message_time,
-            professional_profile_image_url: image_url.clone()
+            user_id: chat.user_uid,
+            professional_profile_id: chat.professional_profile_uid,
+            professional_name,
+            image_url,
+            messages,
         }
     }
 }

@@ -4,7 +4,6 @@ use crate::models::professional_aggregate::{
 use crate::schema::schema::professionals::dsl::*;
 use diesel::prelude::*;
 use diesel::result::Error;
-use uuid::Uuid;
 
 pub fn get_professional_by_email(
     conn: &mut PgConnection,
@@ -19,7 +18,7 @@ pub fn save_professional_to_database(
     conn: &mut PgConnection,
     professional_name: &str,
     professional_email: &str,
-    professional_uid_to_save: &Uuid,
+    professional_uid_to_save: &str,
 ) -> Result<(), Error> {
     // Create a new professional instance for insertion
     let new_professional = NewProfessional {

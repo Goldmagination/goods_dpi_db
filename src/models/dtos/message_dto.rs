@@ -1,27 +1,26 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MessageDTO {
     pub id: i32,
     pub chat_id: i32,
-    pub sender_uid: Uuid,
+    pub sender_uid: String,
     pub text: String,
     pub timestamp: NaiveDateTime,
     pub is_read: bool,
-    pub receiver_uid: Uuid,
+    pub receiver_uid: String,
     pub assignment: Option<MessageAssignmentDTO>,
 }
 impl MessageDTO {
     pub fn to_dto(
         id: i32,
         chat_id: i32,
-        sender_uid: Uuid,
+        sender_uid: String,
         text: String,
         timestamp: NaiveDateTime,
         is_read: bool,
-        receiver_uid: Uuid,
+        receiver_uid: String,
         assignment: Option<MessageAssignmentDTO>,
     ) -> Self {
         MessageDTO {

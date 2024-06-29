@@ -67,7 +67,6 @@ use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 use db::Pool;
 use dotenv::dotenv;
-use log::*;
 
 use services::{
     categories_services::category_endpoints, chat_services::chat_endpoints,
