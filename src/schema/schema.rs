@@ -63,9 +63,11 @@ diesel::table! {
 diesel::table! {
     chat (id) {
         id -> Int4,
-        user_id -> Int4,
-        professional_profile_id -> Int4,
         last_message_time -> Timestamp,
+        #[max_length = 255]
+        user_uid -> Varchar,
+        #[max_length = 255]
+        professional_profile_uid -> Varchar,
     }
 }
 
@@ -73,11 +75,13 @@ diesel::table! {
     message (id) {
         id -> Int4,
         chat_id -> Int4,
-        sender_id -> Int4,
         text -> Text,
         timestamp -> Timestamp,
         is_read -> Bool,
-        receiver_id -> Int4,
+        #[max_length = 255]
+        receiver_uid -> Varchar,
+        #[max_length = 255]
+        sender_uid -> Varchar,
     }
 }
 
@@ -102,6 +106,8 @@ diesel::table! {
         average_rating -> Nullable<Float8>,
         remote_available -> Bool,
         professional_name -> Varchar,
+        #[max_length = 255]
+        professional_profile_uid -> Varchar,
     }
 }
 
@@ -110,9 +116,10 @@ diesel::table! {
         id -> Int4,
         name -> Varchar,
         email -> Varchar,
-        user_uid -> Varchar,
         #[max_length = 255]
         image_url -> Nullable<Varchar>,
+        #[max_length = 255]
+        user_uid -> Varchar,
     }
 }
 
@@ -194,9 +201,10 @@ diesel::table! {
         id -> Int4,
         name -> Varchar,
         email -> Varchar,
-        user_uid -> Varchar,
         #[max_length = 255]
         image_url -> Nullable<Varchar>,
+        #[max_length = 255]
+        user_uid -> Varchar,
     }
 }
 
@@ -206,8 +214,6 @@ diesel::joinable!(appointment_assignments -> appointments (appointment_id));
 diesel::joinable!(appointments -> professional_profiles (professional_profile_id));
 diesel::joinable!(appointments -> users (customer_id));
 diesel::joinable!(business_hours -> professional_profiles (professional_profile_id));
-diesel::joinable!(chat -> professional_profiles (professional_profile_id));
-diesel::joinable!(chat -> users (user_id));
 diesel::joinable!(message -> chat (chat_id));
 diesel::joinable!(message_assignments -> message (message_id));
 diesel::joinable!(professional_profiles -> professionals (professional_id));

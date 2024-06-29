@@ -25,6 +25,7 @@ mod models {
     pub mod dtos {
         pub mod address_dto;
         pub mod chat_dto;
+        pub mod message_dto;
         pub mod professional_profile_detail_dto;
         pub mod professional_profiles_dto;
         pub mod review_dto;

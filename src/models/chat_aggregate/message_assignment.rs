@@ -1,6 +1,4 @@
-use chrono::NaiveDateTime;
 use diesel::prelude::*;
-
 
 #[derive(Queryable)]
 pub struct MessageAssignment {

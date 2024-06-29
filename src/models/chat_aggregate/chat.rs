@@ -1,29 +1,21 @@
 use crate::schema::schema::chat;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Queryable, Serialize, Identifiable)]
+#[derive(Queryable, Serialize, Deserialize, Identifiable)]
 #[diesel(table_name = chat)]
 pub struct Chat {
     pub id: i32,
-    pub user_id: i32,
-    pub professional_profile_id: i32,
     pub last_message_time: NaiveDateTime,
+    pub user_uid: String,
+    pub professional_profile_uid: String,
 }
 
 #[derive(Insertable)]
 #[diesel(table_name = chat)]
 pub struct NewChat {
-    pub user_id: i32,
-    pub professional_profile_id: i32,
+    pub user_uid: String,
+    pub professional_profile_uid: String,
     pub last_message_time: NaiveDateTime,
-}
-pub struct ChatDTO {
-    pub id: i32,
-    pub user_id: i32,
-    pub professional_profile_id: i32,
-    pub professional_name: String,
-    pub image_url: Option<String>,
-    pub last_message: String,
 }
