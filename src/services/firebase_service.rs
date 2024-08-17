@@ -1,22 +1,8 @@
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use std::{collections::HashMap, env, error::Error};
-
-#[derive(Debug)]
-struct FirebaseError(String);
-
-impl fmt::Display for FirebaseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FirebaseError: {}", self.0)
-    }
-}
-
-impl Error for FirebaseError {}
-
-impl Send for FirebaseError {}
-impl Sync for FirebaseError {}
+use thiserror::Error;
 
 const FIREBASE_SIGN_UP_URL: &str = "https://identitytoolkit.googleapis.com/v1/accounts:signUp";
 const FIREBASE_VALIDATE_TOKEN_URL: &str =
@@ -44,11 +30,29 @@ pub struct FirebaseRegisterResponse {
     pub localId: String, // The UID
 }
 
+#[derive(Error, Debug)]
+pub enum FirebaseServiceError {
+    #[error("Firebase API error: {0}")]
+    FirebaseApiError(String),
+    #[error("Failed to decode JWT token")]
+    JwtDecodeError,
+    #[error("JWT header missing 'kid'")]
+    MissingKidError,
+    #[error("Invalid 'kid' in JWT header")]
+    InvalidKidError,
+    #[error("Environment variable not found: {0}")]
+    EnvVarError(#[from] std::env::VarError),
+    #[error("Reqwest error: {0}")]
+    ReqwestError(#[from] reqwest::Error),
+    #[error("Decoding key error: {0}")]
+    DecodingKeyError(#[from] jsonwebtoken::errors::Error),
+}
+
 pub async fn create_firebase_user(
     email: &str,
     password: &str,
-) -> Result<FirebaseRegisterResponse, Box<dyn Error + Send + Sync>> {
-    let api_key = env::var("FIREBASE_API_KEY").expect("FIREBASE_API_KEY must be set");
+) -> Result<FirebaseRegisterResponse, FirebaseServiceError> {
+    let api_key = env::var("FIREBASE_API_KEY")?;
     let client = Client::new();
     let request_body = FirebaseRegisterRequest {
         email: email.to_string(),
@@ -60,51 +64,49 @@ pub async fn create_firebase_user(
         .post(format!("{}?key={}", FIREBASE_SIGN_UP_URL, api_key))
         .json(&request_body)
         .send()
-        .await
-        .map_err(|e| Box::new(FirebaseError(e.to_string())) as Box<dyn Error + Send + Sync>)?;
+        .await?;
 
     if response.status().is_success() {
         response
             .json::<FirebaseRegisterResponse>()
             .await
-            .map_err(|e| Box::new(FirebaseError(e.to_string())) as Box<dyn Error + Send + Sync>)
+            .map_err(|_| {
+                FirebaseServiceError::FirebaseApiError(
+                    "Failed to parse Firebase response".to_string(),
+                )
+            })
     } else {
-        Err(
-            Box::new(FirebaseError("Failed to create user in Firebase".into()))
-                as Box<dyn Error + Send + Sync>,
-        )
+        Err(FirebaseServiceError::FirebaseApiError(
+            "Failed to create user in Firebase".to_string(),
+        ))
     }
 }
 
-pub async fn verify_token(token: &str) -> Result<bool, Box<dyn Error + Send + Sync>> {
-    let api_key = env::var("FIREBASE_API_KEY").expect("FIREBASE_API_KEY must be set");
+pub async fn verify_token(token: &str) -> Result<bool, FirebaseServiceError> {
+    let api_key = env::var("FIREBASE_API_KEY")?;
     let url = format!("{}?key={}", FIREBASE_VALIDATE_TOKEN_URL, api_key);
-    let client = Client::new();
+    let client = reqwest::Client::new();
     let res = client
         .post(&url)
         .json(&serde_json::json!({
             "idToken": token
         }))
         .send()
-        .await
-        .map_err(|e| Box::new(FirebaseError(e.to_string())) as Box<dyn Error + Send + Sync>)?;
+        .await?;
 
     Ok(res.status().is_success())
 }
 
-async fn get_firebase_public_keys(
-) -> Result<HashMap<String, DecodingKey>, Box<dyn Error + Send + Sync>> {
+async fn get_firebase_public_keys() -> Result<HashMap<String, DecodingKey>, FirebaseServiceError> {
     let jwks_url =
         "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
     let client = Client::new();
     let response = client
         .get(jwks_url)
         .send()
-        .await
-        .map_err(|e| Box::new(FirebaseError(e.to_string())) as Box<dyn Error + Send + Sync>)?
+        .await?
         .json::<HashMap<String, String>>()
-        .await
-        .map_err(|e| Box::new(FirebaseError(e.to_string())) as Box<dyn Error + Send + Sync>)?;
+        .await?;
 
     let mut keys = HashMap::new();
     for (kid, key) in response {
@@ -114,32 +116,24 @@ async fn get_firebase_public_keys(
     Ok(keys)
 }
 
-pub async fn extract_uid_from_firebase_token(
-    token: &str,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
-    let header = decode_header(token)
-        .map_err(|e| Box::new(FirebaseError(e.to_string())) as Box<dyn Error + Send + Sync>)?;
-    let kid = header.kid.ok_or_else(|| {
-        Box::new(FirebaseError("Missing 'kid' in JWT header".to_string()))
-            as Box<dyn Error + Send + Sync>
-    })?;
+pub async fn extract_uid_from_firebase_token(token: &str) -> Result<String, FirebaseServiceError> {
+    let header = decode_header(token).map_err(|_| FirebaseServiceError::JwtDecodeError)?;
+    let kid = header.kid.ok_or(FirebaseServiceError::MissingKidError)?;
 
     let keys = get_firebase_public_keys().await?;
-    let key = keys.get(&kid).ok_or_else(|| {
-        Box::new(FirebaseError("Invalid 'kid' in JWT header".to_string()))
-            as Box<dyn Error + Send + Sync>
-    })?;
+    let key = keys
+        .get(&kid)
+        .ok_or(FirebaseServiceError::InvalidKidError)?;
 
     let mut validation = Validation::new(Algorithm::RS256);
-    validation
-        .set_audience(&[env::var("FIREBASE_PROJECT_ID").expect("FIREBASE_PROJECT_ID must be set")]);
+    validation.set_audience(&[env::var("FIREBASE_PROJECT_ID")?]);
     validation.set_issuer(&[format!(
         "https://securetoken.google.com/{}",
-        env::var("FIREBASE_PROJECT_ID").expect("FIREBASE_PROJECT_ID must be set")
+        env::var("FIREBASE_PROJECT_ID")?
     )]);
 
     let token_data = decode::<Claims>(token, key, &validation)
-        .map_err(|e| Box::new(FirebaseError(e.to_string())) as Box<dyn Error + Send + Sync>)?;
+        .map_err(|_| FirebaseServiceError::JwtDecodeError)?;
 
     Ok(token_data.claims.sub)
 }
@@ -147,33 +141,37 @@ pub async fn extract_uid_from_firebase_token(
 pub async fn upload_image_to_firebase(
     image_bytes: Vec<u8>,
     file_name: String,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
-    let firebase_storage_bucket =
-        env::var("FIREBASE_STORAGE_BUCKET").expect("FIREBASE_STORAGE_BUCKET must be set");
-    let upload_url = format!(
-        "https://firebasestorage.googleapis.com/v0/b/{}/o?uploadType=media&name={}",
-        firebase_storage_bucket, file_name
+) -> Result<String, FirebaseServiceError> {
+    let bucket_name = env::var("FIREBASE_BUCKET_NAME")?;
+    let url = format!(
+        "https://firebasestorage.googleapis.com/v0/b/{}/o?name={}",
+        bucket_name, file_name
     );
 
     let client = Client::new();
     let response = client
-        .post(&upload_url)
-        .header("Content-Type", "image/jpeg") // Adjust content type if necessary
-        .bearer_auth("YOUR_FIREBASE_TOKEN")
+        .post(&url)
         .body(image_bytes)
+        .header("Content-Type", "image/png")
         .send()
-        .await
-        .map_err(|e| Box::new(FirebaseError(e.to_string())) as Box<dyn Error + Send + Sync>)?;
+        .await?;
 
     if response.status().is_success() {
-        let json_response: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| Box::new(FirebaseError(e.to_string())) as Box<dyn Error + Send + Sync>)?;
-        if let Some(url) = json_response["mediaLink"].as_str() {
-            return Ok(url.to_string());
+        // Parsing the response to get the image download URL
+        let json_response: serde_json::Value = response.json().await?;
+        if let Some(download_url) = json_response["downloadTokens"].as_str() {
+            Ok(format!(
+                "https://firebasestorage.googleapis.com/v0/b/{}/o/{}?alt=media&token={}",
+                bucket_name, file_name, download_url
+            ))
+        } else {
+            Err(FirebaseServiceError::FirebaseApiError(
+                "Failed to retrieve download URL from Firebase".to_string(),
+            ))
         }
+    } else {
+        Err(FirebaseServiceError::FirebaseApiError(
+            "Failed to upload image to Firebase".to_string(),
+        ))
     }
-
-    Err(Box::new(FirebaseError("Failed to upload image".into())) as Box<dyn Error + Send + Sync>)
 }
