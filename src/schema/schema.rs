@@ -178,21 +178,28 @@ diesel::table! {
 }
 
 diesel::table! {
-    tasks (id) {
+    task (id) {
         id -> Int4,
         user_id -> Int4,
         creation_time -> Timestamp,
         description -> Nullable<Text>,
         address_id -> Nullable<Int4>,
         price -> Nullable<Int4>,
+        title -> Varchar,
+        min_price -> Nullable<Float8>,
+        max_price -> Nullable<Float8>,
+        is_flexible_timing -> Bool,
+        scheduled_date -> Nullable<Date>,
+        scheduled_time -> Nullable<Time>,
+        category_id -> Nullable<Int4>,
     }
 }
 
 diesel::table! {
-    tasks_subcategories (id) {
+    task_assignments (id) {
         id -> Int4,
         task_id -> Int4,
-        subcategory_id -> Int4,
+        image_url -> Varchar,
     }
 }
 
@@ -223,10 +230,9 @@ diesel::joinable!(review_content_assignments -> review (review_id));
 diesel::joinable!(service_offerings -> professional_profiles (professional_profile_id));
 diesel::joinable!(service_offerings -> subcategories (subcategory_id));
 diesel::joinable!(subcategories -> categories (category_id));
-diesel::joinable!(tasks -> addresses (address_id));
-diesel::joinable!(tasks -> users (user_id));
-diesel::joinable!(tasks_subcategories -> subcategories (subcategory_id));
-diesel::joinable!(tasks_subcategories -> tasks (task_id));
+diesel::joinable!(task -> addresses (address_id));
+diesel::joinable!(task -> users (user_id));
+diesel::joinable!(task_assignments -> task (task_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     address_assignments,
@@ -245,7 +251,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     service_offerings,
     spatial_ref_sys,
     subcategories,
-    tasks,
-    tasks_subcategories,
+    task,
+    task_assignments,
     users,
 );
