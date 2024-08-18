@@ -1,9 +1,15 @@
 mod db;
+mod errors {
+    pub mod firebase_errors;
+    pub mod task_errors;
+}
 mod dal {
+    pub mod address_db;
     pub mod category_db;
     pub mod chat_db;
     pub mod professional_db;
     pub mod professional_profile_db;
+    pub mod task_db;
     pub mod user_db;
 }
 mod services {
@@ -12,13 +18,10 @@ mod services {
     pub mod firebase_service;
     pub mod professional_profile_services;
     pub mod professional_services;
+    pub mod task_services;
     pub mod user_services;
 }
 
-// pub mod user_services{
-//     pub mod user_endpoints;
-//     mod user_service;
-// }}
 mod models {
     pub mod address;
     pub mod address_assignments;
@@ -30,6 +33,7 @@ mod models {
         pub mod professional_profiles_dto;
         pub mod review_dto;
         pub mod subcategory_dto;
+        pub mod task_dto;
     }
     pub mod user_aggregate {
         pub mod new_user;
@@ -58,6 +62,10 @@ mod models {
         pub mod message;
         pub mod message_assignment;
     }
+    pub mod task_aggregate {
+        pub mod task;
+        pub mod task_assignment;
+    }
 }
 mod schema {
     pub mod schema;
@@ -71,7 +79,8 @@ use dotenv::dotenv;
 use services::{
     categories_services::category_endpoints, chat_services::chat_endpoints,
     professional_profile_services::professional_profile_endpoints,
-    professional_services::professional_endpoints, user_services::user_endpoints,
+    professional_services::professional_endpoints, task_services::task_endpoints,
+    user_services::user_endpoints,
 };
 
 #[actix_web::main]
@@ -93,7 +102,7 @@ async fn main() -> std::io::Result<()> {
             .configure(professional_profile_endpoints::professional_profile_routes)
             .configure(category_endpoints::category_routes)
             .configure(chat_endpoints::chat_routes)
-        // TODO: add other routes here
+            .configure(task_endpoints::task_routes)
     })
     .bind("0.0.0.0:8080")?
     .run()

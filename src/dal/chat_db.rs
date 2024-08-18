@@ -7,7 +7,7 @@ use crate::models::chat_aggregate::{
 use crate::models::dtos::chat_dto::ChatDTO;
 use crate::models::dtos::message_dto::{MessageAssignmentDTO, MessageDTO};
 use crate::schema::schema::{chat, message, message_assignments, professional_profiles};
-use actix_web::{web, Error as ActixError, HttpResponse};
+use actix_web::{web, Error as ActixError};
 use chrono::{NaiveDateTime, Utc};
 use diesel::prelude::*;
 
