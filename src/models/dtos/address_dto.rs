@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::models::address::Address;
 
@@ -8,6 +8,8 @@ pub struct AddressDTO {
     pub city: String,
     pub state: String,
     pub zip: String,
+    pub lat: Option<f64>,
+    pub lng: Option<f64>,
 }
 
 pub enum Country {
@@ -25,12 +27,15 @@ impl Country {
         }
     }
 }
-impl AddressDTO{
-pub fn address_to_dto(address: &Address) -> AddressDTO {
-    AddressDTO {
-        street: address.street.clone(),
-        city: address.city.clone(),
-        state: address.state.clone(),
-        zip: address.zip.clone()
+impl AddressDTO {
+    pub fn address_to_dto(address: &Address) -> AddressDTO {
+        AddressDTO {
+            street: address.street.clone(),
+            city: address.city.clone(),
+            state: address.state.clone(),
+            zip: address.zip.clone(),
+            lat: Some(address.lat.clone()),
+            lng: Some(address.lng.clone()),
+        }
     }
-}}
+}

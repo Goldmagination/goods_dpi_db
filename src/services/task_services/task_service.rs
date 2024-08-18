@@ -24,7 +24,6 @@ pub async fn place_task_handler(
                         Ok(conn) => conn,
                         Err(_) => return HttpResponse::InternalServerError().finish(),
                     };
-
                     match task_db::place_task(&mut conn, user_uid, task_dto.into_inner()).await {
                         Ok(task) => HttpResponse::Ok().json(task),
                         Err(_) => HttpResponse::InternalServerError().finish(),

@@ -1,8 +1,10 @@
+use crate::errors::firebase_errors::FirebaseServiceError;
+use base64::engine::general_purpose;
+use base64::Engine;
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, env, error::Error};
-use thiserror::Error;
+use std::{collections::HashMap, env};
 
 const FIREBASE_SIGN_UP_URL: &str = "https://identitytoolkit.googleapis.com/v1/accounts:signUp";
 const FIREBASE_VALIDATE_TOKEN_URL: &str =
@@ -28,24 +30,6 @@ pub struct FirebaseRegisterResponse {
     pub refreshToken: String,
     pub expiresIn: String,
     pub localId: String, // The UID
-}
-
-#[derive(Error, Debug)]
-pub enum FirebaseServiceError {
-    #[error("Firebase API error: {0}")]
-    FirebaseApiError(String),
-    #[error("Failed to decode JWT token")]
-    JwtDecodeError,
-    #[error("JWT header missing 'kid'")]
-    MissingKidError,
-    #[error("Invalid 'kid' in JWT header")]
-    InvalidKidError,
-    #[error("Environment variable not found: {0}")]
-    EnvVarError(#[from] std::env::VarError),
-    #[error("Reqwest error: {0}")]
-    ReqwestError(#[from] reqwest::Error),
-    #[error("Decoding key error: {0}")]
-    DecodingKeyError(#[from] jsonwebtoken::errors::Error),
 }
 
 pub async fn create_firebase_user(
@@ -93,7 +77,6 @@ pub async fn verify_token(token: &str) -> Result<bool, FirebaseServiceError> {
         }))
         .send()
         .await?;
-
     Ok(res.status().is_success())
 }
 
@@ -107,7 +90,6 @@ async fn get_firebase_public_keys() -> Result<HashMap<String, DecodingKey>, Fire
         .await?
         .json::<HashMap<String, String>>()
         .await?;
-
     let mut keys = HashMap::new();
     for (kid, key) in response {
         keys.insert(kid, DecodingKey::from_rsa_pem(key.as_bytes())?);
@@ -126,10 +108,11 @@ pub async fn extract_uid_from_firebase_token(token: &str) -> Result<String, Fire
         .ok_or(FirebaseServiceError::InvalidKidError)?;
 
     let mut validation = Validation::new(Algorithm::RS256);
-    validation.set_audience(&[env::var("FIREBASE_PROJECT_ID")?]);
+    let firebase_project_id = env::var("FIREBASE_PROJECT_ID")?;
+    validation.set_audience(&[firebase_project_id.clone()]);
     validation.set_issuer(&[format!(
         "https://securetoken.google.com/{}",
-        env::var("FIREBASE_PROJECT_ID")?
+        firebase_project_id
     )]);
 
     let token_data = decode::<Claims>(token, key, &validation)
@@ -139,9 +122,12 @@ pub async fn extract_uid_from_firebase_token(token: &str) -> Result<String, Fire
 }
 
 pub async fn upload_image_to_firebase(
-    image_bytes: Vec<u8>,
+    image_bytes: &String,
     file_name: String,
 ) -> Result<String, FirebaseServiceError> {
+    let image_bytes = general_purpose::STANDARD
+        .decode(image_bytes)
+        .map_err(FirebaseServiceError::Base64DecodeError)?;
     let bucket_name = env::var("FIREBASE_BUCKET_NAME")?;
     let url = format!(
         "https://firebasestorage.googleapis.com/v0/b/{}/o?name={}",

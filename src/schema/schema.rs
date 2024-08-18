@@ -180,18 +180,18 @@ diesel::table! {
 diesel::table! {
     task (id) {
         id -> Int4,
-        user_id -> Int4,
-        creation_time -> Timestamp,
+        #[max_length = 255]
+        user_uid -> Varchar,
+        creation_time -> Timestamptz,
         description -> Nullable<Text>,
         address_id -> Nullable<Int4>,
-        price -> Nullable<Int4>,
         title -> Varchar,
         min_price -> Nullable<Float8>,
         max_price -> Nullable<Float8>,
         is_flexible_timing -> Bool,
         scheduled_date -> Nullable<Date>,
         scheduled_time -> Nullable<Time>,
-        category_id -> Nullable<Int4>,
+        category_id -> Int4,
     }
 }
 
@@ -231,7 +231,6 @@ diesel::joinable!(service_offerings -> professional_profiles (professional_profi
 diesel::joinable!(service_offerings -> subcategories (subcategory_id));
 diesel::joinable!(subcategories -> categories (category_id));
 diesel::joinable!(task -> addresses (address_id));
-diesel::joinable!(task -> users (user_id));
 diesel::joinable!(task_assignments -> task (task_id));
 
 diesel::allow_tables_to_appear_in_same_query!(

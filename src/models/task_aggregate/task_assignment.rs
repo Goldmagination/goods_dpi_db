@@ -1,3 +1,4 @@
+use crate::schema::schema::task_assignments;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +10,7 @@ pub struct TaskAssignments {
 }
 
 #[derive(Insertable, Serialize, Deserialize)]
-#[diesel(table_name = task_assignments)] // Updated attribute
+#[diesel(table_name = task_assignments)]
 pub struct NewTaskAssignments {
     pub task_id: i32,
     pub image_url: String,

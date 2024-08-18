@@ -1,5 +1,10 @@
 mod db;
+mod errors {
+    pub mod firebase_errors;
+    pub mod task_errors;
+}
 mod dal {
+    pub mod address_db;
     pub mod category_db;
     pub mod chat_db;
     pub mod professional_db;
