@@ -1,5 +1,5 @@
 use crate::schema::schema::message;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Utc};
 use diesel::prelude::*;
 use serde::Serialize;
 
@@ -23,4 +23,22 @@ pub struct NewMessage {
     pub text: String,
     pub timestamp: NaiveDateTime,
     pub is_read: bool,
+}
+
+impl NewMessage {
+    pub fn create_message(
+        chat_id: i32,
+        receiver_id: String,
+        sender_id: String,
+        text: String,
+    ) -> Self {
+        Self {
+            chat_id,
+            sender_uid: sender_id,
+            receiver_uid: receiver_id,
+            text,
+            timestamp: Utc::now().naive_utc(),
+            is_read: false,
+        }
+    }
 }

@@ -6,9 +6,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum TaskError {
-    #[error("Invalid user UID")]
-    InvalidUserUid,
-
     #[error("Database error: {0}")]
     DieselError(#[from] DieselError),
 
@@ -20,4 +17,10 @@ pub enum TaskError {
 
     #[error("Invalid category ID: {0}")]
     InvalidCategoryId(#[from] ParseIntError),
+
+    #[error("Blocking error: {0}")]
+    BlockingError(String),
+
+    #[error("Database pool error: {0}")]
+    DatabasePoolError(String),
 }

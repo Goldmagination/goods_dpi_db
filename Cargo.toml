@@ -7,11 +7,9 @@ edition = "2021"
 
 [dependencies]
 thiserror = "1.0.63"
-base64 = "0.22.1"
+tracing = "0.1.40"
 rand = "0.8.5"
 jsonwebtoken = "9.3.0"
-tokio = "1.35.0"
-log = "0.4.21"
 diesel = { version = "2.1.4", features = ["postgres", "r2d2", "chrono"] }
 actix = "0.13.1"
 actix-web = "4.4.0"

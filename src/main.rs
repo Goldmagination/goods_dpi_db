@@ -13,6 +13,7 @@ mod dal {
     pub mod user_db;
 }
 mod services {
+    pub mod booking_services;
     pub mod categories_services;
     pub mod chat_services;
     pub mod firebase_service;
@@ -54,8 +55,10 @@ mod models {
         pub mod review;
         pub mod review_content_assignments;
     }
-    pub mod appointment_aggregate {
-        pub mod appointment_assignment;
+    pub mod booking_aggregate {
+        pub mod booking;
+        pub mod booking_assignment;
+        pub mod booking_status;
     }
     pub mod chat_aggregate {
         pub mod chat;
@@ -77,8 +80,8 @@ use db::Pool;
 use dotenv::dotenv;
 
 use services::{
-    categories_services::category_endpoints, chat_services::chat_endpoints,
-    professional_profile_services::professional_profile_endpoints,
+    booking_services::booking_endpoints, categories_services::category_endpoints,
+    chat_services::chat_endpoints, professional_profile_services::professional_profile_endpoints,
     professional_services::professional_endpoints, task_services::task_endpoints,
     user_services::user_endpoints,
 };
@@ -103,6 +106,7 @@ async fn main() -> std::io::Result<()> {
             .configure(category_endpoints::category_routes)
             .configure(chat_endpoints::chat_routes)
             .configure(task_endpoints::task_routes)
+            .configure(booking_endpoints::booking_routes)
     })
     .bind("0.0.0.0:8080")?
     .run()

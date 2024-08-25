@@ -5,10 +5,10 @@ use actix_web_actors::ws;
 use chrono::Utc;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
-use log::{error, info};
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use std::env;
+use tracing::{error, info};
 
 const FIREBASE_VALIDATE_TOKEN_URL: &str =
     "https://identitytoolkit.googleapis.com/v1/accounts:lookup";
@@ -66,7 +66,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ChatWebSocket {
                 ctx.pong(&msg);
             }
             Ok(ws::Message::Close(reason)) => {
-                info!("WebSocket closing: {:?}", reason);
+                info!(reason = ?reason, "WebSocket closing");
                 ctx.close(reason);
                 ctx.stop();
             }

@@ -123,14 +123,8 @@ pub async fn send_message(
         conn.transaction(|conn| {
             let chat_id = get_or_create_chat(conn, &sender_id, &receiver_id)?;
 
-            let new_message = NewMessage {
-                chat_id,
-                sender_uid: sender_id.clone(),
-                receiver_uid: receiver_id.clone(),
-                text: text.clone(),
-                timestamp: Utc::now().naive_utc(),
-                is_read: false,
-            };
+            let new_message =
+                NewMessage::create_message(chat_id.clone(), receiver_id, sender_id, text);
 
             let inserted_message_id = diesel::insert_into(message::table)
                 .values(&new_message)

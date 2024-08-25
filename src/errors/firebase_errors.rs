@@ -1,4 +1,3 @@
-use base64::DecodeError as Base64DecodeError;
 use jsonwebtoken::errors::Error as JwtError;
 use reqwest::Error as ReqwestError;
 use std::env::VarError;
@@ -20,6 +19,4 @@ pub enum FirebaseServiceError {
     ReqwestError(#[from] ReqwestError),
     #[error("Decoding key error: {0}")]
     DecodingKeyError(#[from] JwtError),
-    #[error("Base64 decoding error: {0}")]
-    Base64DecodeError(#[from] Base64DecodeError),
 }
