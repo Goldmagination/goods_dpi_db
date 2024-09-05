@@ -1,10 +1,12 @@
 mod db;
 mod errors {
+    pub mod booking_errors;
     pub mod firebase_errors;
     pub mod task_errors;
 }
 mod dal {
     pub mod address_db;
+    pub mod booking_db;
     pub mod category_db;
     pub mod chat_db;
     pub mod professional_db;
@@ -28,6 +30,7 @@ mod models {
     pub mod address_assignments;
     pub mod dtos {
         pub mod address_dto;
+        pub mod booking_dto;
         pub mod chat_dto;
         pub mod message_dto;
         pub mod professional_profile_detail_dto;

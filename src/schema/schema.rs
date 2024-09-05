@@ -50,6 +50,7 @@ diesel::table! {
         category_id -> Int4,
         end_time -> Nullable<Timestamptz>,
         service_offering_id -> Nullable<Int4>,
+        offering_price -> Float8,
     }
 }
 

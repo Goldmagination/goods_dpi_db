@@ -1,14 +1,18 @@
-use chrono::NaiveTime;
-use serde::{Serialize, Deserialize};
-use super::review_dto::*;
 use super::address_dto::*;
+use super::review_dto::*;
 use crate::models::professional_aggregate::service_offering::*;
+use chrono::NaiveTime;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProfessionalProfileDetailDTO {
     pub id: i32,
 
+    pub uid: String,
+
     pub professional_name: String,
+
+    pub category_id: i32,
 
     pub image_url: Option<String>, //TODO: Business hours and background image
 
@@ -19,10 +23,10 @@ pub struct ProfessionalProfileDetailDTO {
     pub delivery_enabled: bool,
 
     pub remote_available: bool,
-    
+
     pub credentials: Option<String>,
 
-    pub average_rating: Option<f64>,  // Nullable to handle cases where it might be NaN or NULL
+    pub average_rating: Option<f64>, // Nullable to handle cases where it might be NaN or NULL
 
     pub address: Option<AddressDTO>,
 
@@ -33,7 +37,6 @@ pub struct ProfessionalProfileDetailDTO {
     pub review_count: i64,
 
     pub reviews: Option<Vec<ReviewDTO>>,
-
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,15 +44,19 @@ pub struct ServiceOfferingDTO {
     pub subcategory_id: i32,
     pub subcategory_name: String,
     pub category_id: i32,
-    pub price: f64,  // Ensure this is appropriately represented in your database
+    pub price: f64, // Ensure this is appropriately represented in your database
 }
 
 impl ServiceOfferingDTO {
-pub fn service_offering_to_dto(service_offering: &ServiceOffering, category_id: i32) -> ServiceOfferingDTO {
-    ServiceOfferingDTO {
-        subcategory_id: service_offering.subcategory_id,
-        subcategory_name: service_offering.subcategory_name.clone(),
-        category_id: category_id,
-        price: service_offering.price
+    pub fn service_offering_to_dto(
+        service_offering: &ServiceOffering,
+        category_id: i32,
+    ) -> ServiceOfferingDTO {
+        ServiceOfferingDTO {
+            subcategory_id: service_offering.subcategory_id,
+            subcategory_name: service_offering.subcategory_name.clone(),
+            category_id: category_id,
+            price: service_offering.price,
+        }
     }
-}}
+}

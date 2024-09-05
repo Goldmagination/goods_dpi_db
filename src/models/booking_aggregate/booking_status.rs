@@ -1,9 +1,6 @@
-use crate::schema::schema::booking_status;
-use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, AsExpression, FromSqlRow)]
-#[sql_type = "diesel::sql_types::Integer"]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum BookingStatus {
     Proposed = 0,
     Accepted = 1,

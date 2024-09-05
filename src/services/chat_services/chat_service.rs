@@ -188,7 +188,13 @@ pub async fn get_user_chats(
     let mut conn = db_pool.get().expect("Failed to get DB connection");
     match chat_db::get_chats_for_user(&mut conn, &user_uid) {
         Ok(chats) => HttpResponse::Ok().json(chats),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+        Err(_) => HttpResponse::InternalServerError().json(ApiResponse {
+            status: "error".to_string(),
+            message: ErrorMessage {
+                error: "Failed to fetch user chats".to_string(),
+                details: None,
+            },
+        }),
     }
 }
 

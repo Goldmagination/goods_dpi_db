@@ -70,6 +70,7 @@ pub async fn search_services(
         professional_profiles.delivery_enabled,
         professional_profiles.remote_available,
         professional_profiles.average_rating,
+        professional_profile_uid,
         addresses.street,
         addresses.city,
         addresses.zip,
@@ -211,6 +212,8 @@ pub async fn get_profile(
     };
     let final_profile = ProfessionalProfileDetailDTO {
         id: profile.id,
+        uid: profile.professional_profile_uid,
+        category_id: profile.category_id,
         professional_name: profile.professional_name,
         opening_time: opening_time,
         closing_time: closing_time,
