@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::errors::booking_errors::BookingError;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BookingDTO {
     pub id: Option<i32>,

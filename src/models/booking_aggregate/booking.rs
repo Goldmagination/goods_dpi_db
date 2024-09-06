@@ -9,11 +9,11 @@ pub struct Booking {
     pub customer_uid: String,
     pub professional_profile_uid: String,
     pub date_time: Option<DateTime<Utc>>,
-    pub end_time: Option<DateTime<Utc>>,
     pub status: i32,
     pub description: Option<String>,
     pub category_id: i32,
-    pub offering_id: i32,
+    pub end_time: Option<DateTime<Utc>>,
+    pub service_offering_id: Option<i32>,
     pub offering_price: f64,
 }
 #[derive(Insertable, Serialize, Deserialize)]

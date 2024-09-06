@@ -1,11 +1,9 @@
 use super::address_db;
 use crate::errors::task_errors::TaskError;
-use crate::models::address::Address;
-use crate::models::dtos::address_dto::AddressDTO;
 use crate::models::dtos::task_dto::TaskDto;
 use crate::models::task_aggregate::task::{NewTask, Task};
-use crate::models::task_aggregate::task_assignment::{NewTaskAssignments, TaskAssignments};
-use crate::schema::schema::{addresses, task, task_assignments};
+use crate::models::task_aggregate::task_assignment::NewTaskAssignments;
+use crate::schema::schema::{task, task_assignments};
 use actix_web::web;
 use chrono::{NaiveDate, NaiveTime, Utc};
 use diesel::prelude::*;
@@ -120,36 +118,36 @@ fn parse_time(time_str: &Option<String>) -> Result<Option<NaiveTime>, TaskError>
     }
 }
 
-pub fn get_tasks_by_user(
-    conn: &mut PgConnection,
-    user_uid: &str,
-) -> Result<Vec<TaskDto>, TaskError> {
-    let tasks: Vec<(Task, Option<TaskAssignments>, Option<Address>)> = task::table
-        .filter(task::user_uid.eq(user_uid))
-        .left_join(task_assignments::table.on(task::id.eq(task_assignments::task_id)))
-        .left_join(addresses::table.on(task::address_id.eq(addresses::id.nullable())))
-        .load(conn)?;
+// pub fn get_tasks_by_user(
+//     conn: &mut PgConnection,
+//     user_uid: &str,
+// ) -> Result<Vec<TaskDto>, TaskError> {
+//     let tasks: Vec<(Task, Option<TaskAssignments>, Option<Address>)> = task::table
+//         .filter(task::user_uid.eq(user_uid))
+//         .left_join(task_assignments::table.on(task::id.eq(task_assignments::task_id)))
+//         .left_join(addresses::table.on(task::address_id.eq(addresses::id.nullable())))
+//         .load(conn)?;
 
-    // Map the results to TaskDto
-    let task_dtos: Vec<TaskDto> = tasks
-        .into_iter()
-        .map(|(task, task_assignment, address)| {
-            let image_strings = task_assignment.map(|assignment| vec![assignment.image_url]);
+//     // Map the results to TaskDto
+//     let task_dtos: Vec<TaskDto> = tasks
+//         .into_iter()
+//         .map(|(task, task_assignment, address)| {
+//             let image_strings = task_assignment.map(|assignment| vec![assignment.image_url]);
 
-            TaskDto {
-                title: task.title.clone(),
-                description: task.description.clone(),
-                image_strings,
-                category_id: task.category_id,
-                is_flexible_timing: task.is_flexible_timing,
-                scheduled_date: task.scheduled_date.map(|d| d.to_string()),
-                scheduled_time: task.scheduled_time.map(|t| t.to_string()),
-                min_price: task.min_price,
-                max_price: task.max_price,
-                address: address.map(|addr| AddressDTO::address_to_dto(&addr)),
-            }
-        })
-        .collect();
+//             TaskDto {
+//                 title: task.title.clone(),
+//                 description: task.description.clone(),
+//                 image_strings,
+//                 category_id: task.category_id,
+//                 is_flexible_timing: task.is_flexible_timing,
+//                 scheduled_date: task.scheduled_date.map(|d| d.to_string()),
+//                 scheduled_time: task.scheduled_time.map(|t| t.to_string()),
+//                 min_price: task.min_price,
+//                 max_price: task.max_price,
+//                 address: address.map(|addr| AddressDTO::address_to_dto(&addr)),
+//             }
+//         })
+//         .collect();
 
-    Ok(task_dtos)
-}
+//     Ok(task_dtos)
+// }

@@ -41,10 +41,11 @@ pub struct ProfessionalProfileDetailDTO {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServiceOfferingDTO {
+    pub id: i32,
     pub subcategory_id: i32,
     pub subcategory_name: String,
     pub category_id: i32,
-    pub price: f64, // Ensure this is appropriately represented in your database
+    pub price: f64,
 }
 
 impl ServiceOfferingDTO {
@@ -53,6 +54,7 @@ impl ServiceOfferingDTO {
         category_id: i32,
     ) -> ServiceOfferingDTO {
         ServiceOfferingDTO {
+            id: service_offering.id,
             subcategory_id: service_offering.subcategory_id,
             subcategory_name: service_offering.subcategory_name.clone(),
             category_id: category_id,

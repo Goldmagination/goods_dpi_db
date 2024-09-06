@@ -1,7 +1,7 @@
 use crate::dal::task_db;
 use crate::models::dtos::task_dto::TaskDto;
 use crate::services::firebase_service::{extract_uid_from_firebase_token, verify_token};
-use actix_web::{http::header::HeaderValue, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 
@@ -34,13 +34,4 @@ pub async fn place_task_handler(
         },
         None => HttpResponse::Unauthorized().body("No token"),
     }
-}
-
-fn _extract_token_from_auth_header(auth_header: Option<&HeaderValue>) -> Option<String> {
-    auth_header?
-        .to_str()
-        .ok()?
-        .split_whitespace()
-        .nth(1)
-        .map(String::from)
 }
