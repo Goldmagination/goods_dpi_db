@@ -144,6 +144,11 @@ pub async fn send_message(
 
     Ok(message_id)
 }
+pub fn read_message(conn: &mut PgConnection, message_id: &i32) -> QueryResult<Message> {
+    diesel::update(message::table.filter(message::id.eq(message_id)))
+        .set(message::is_read.eq(true))
+        .get_result(conn)
+}
 
 fn get_or_create_chat(
     conn: &mut PgConnection,

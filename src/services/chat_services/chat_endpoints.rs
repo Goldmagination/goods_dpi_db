@@ -10,6 +10,10 @@ pub fn chat_routes(cfg: &mut web::ServiceConfig) {
             .route(
                 "/retrieve/{user_id}",
                 web::get().to(chat_service::get_user_chats),
+            )
+            .route(
+                "/messages/{message_id}",
+                web::post().to(chat_service::read_message),
             ),
     );
 }

@@ -209,6 +209,27 @@ pub struct PaginationParams {
     pub offset: Option<i64>,
 }
 
+pub async fn read_message(
+    req: HttpRequest,
+    message_id: web::Path<i32>,
+    db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
+) -> impl Responder {
+    if !verify_token_from_request(&req).await {
+        return HttpResponse::Unauthorized().body("Invalid or missing token");
+    }
+    let mut conn = db_pool.get().expect("Failed to get DB connection");
+    match chat_db::read_message(&mut conn, &message_id) {
+        Ok(message) => HttpResponse::Ok().json(message),
+        Err(_) => HttpResponse::InternalServerError().json(ApiResponse {
+            status: "error".to_string(),
+            message: ErrorMessage {
+                error: "Failed to set the message to read".to_string(),
+                details: None,
+            },
+        }),
+    }
+}
+
 pub async fn get_chat_messages(
     req: HttpRequest,
     query_info: web::Query<ChatQuery>,
