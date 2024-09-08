@@ -1,3 +1,4 @@
+use super::chat_db::get_or_create_chat;
 use crate::errors::booking_errors::BookingError;
 use crate::models::booking_aggregate::booking::{Booking, NewBooking};
 use crate::models::booking_aggregate::booking_assignment::NewBookingAssignment;
@@ -20,23 +21,30 @@ pub async fn place_booking(
             let mut conn = db_pool
                 .get()
                 .map_err(|e| BookingError::DatabasePoolError(e.to_string()))?;
+
             let date_time: Option<DateTime<Utc>> = booking_dto
                 .date_time
                 .as_ref()
-                .and_then(|dt_str| DateTime::parse_from_rfc3339(dt_str).ok()) // Parse if not null
+                .and_then(|dt_str| DateTime::parse_from_rfc3339(dt_str).ok())
                 .map(|dt| dt.with_timezone(&Utc));
+
+            let chat_id =
+                get_or_create_chat(&mut conn, &user_uid, &booking_dto.professional_profile_uid)?;
 
             conn.transaction::<_, BookingError, _>(|conn| {
                 let new_booking = NewBooking {
-                    customer_uid: user_uid,
-                    professional_profile_uid: booking_dto.professional_profile_uid,
+                    customer_uid: user_uid.clone(),
+                    professional_profile_uid: booking_dto.professional_profile_uid.clone(),
                     date_time,
                     status: booking_dto.status,
                     description: booking_dto.description,
                     category_id: booking_dto.category_id,
                     service_offering_id: Some(booking_dto.offering_id),
                     offering_price: booking_dto.offering_price,
+                    chat_id,
+                    creation_time: Utc::now(),
                 };
+
                 diesel::insert_into(bookings::table)
                     .values(&new_booking)
                     .get_result(conn)
@@ -56,7 +64,6 @@ pub async fn place_booking(
     };
 
     if let Some(image_urls) = booking_dto.image_urls {
-        let image_urls = image_urls.clone();
         for image_url in image_urls {
             let db_pool = db_pool.clone();
             let booking_id = booking.id;

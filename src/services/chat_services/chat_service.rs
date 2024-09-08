@@ -250,7 +250,7 @@ pub async fn get_chat_messages(
     let mut conn = db_pool.get().expect("Failed to get DB connection");
 
     match chat_db::get_messages_for_chat(&mut conn, chat_id, limit, offset) {
-        Ok(messages) => HttpResponse::Ok().json(messages),
+        Ok(chat_items) => HttpResponse::Ok().json(chat_items),
         Err(_) => HttpResponse::InternalServerError().finish(),
     }
 }

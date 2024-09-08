@@ -1,9 +1,9 @@
 use crate::schema::schema::message;
 use chrono::{NaiveDateTime, Utc};
 use diesel::prelude::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Queryable, Serialize)]
+#[derive(Queryable, Serialize, Deserialize, Debug)]
 pub struct Message {
     pub id: i32,
     pub chat_id: i32,

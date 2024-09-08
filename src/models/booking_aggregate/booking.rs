@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Queryable, Serialize, Deserialize)]
+#[derive(Queryable, Serialize, Deserialize, Debug)]
 pub struct Booking {
     pub id: i32,
     pub customer_uid: String,
@@ -15,6 +15,8 @@ pub struct Booking {
     pub end_time: Option<DateTime<Utc>>,
     pub service_offering_id: Option<i32>,
     pub offering_price: f64,
+    pub chat_id: i32,
+    pub creation_time: DateTime<Utc>,
 }
 #[derive(Insertable, Serialize, Deserialize)]
 #[diesel(table_name = bookings)]
@@ -27,4 +29,6 @@ pub struct NewBooking {
     pub category_id: i32,
     pub service_offering_id: Option<i32>,
     pub offering_price: f64,
+    pub chat_id: i32,
+    pub creation_time: DateTime<Utc>,
 }

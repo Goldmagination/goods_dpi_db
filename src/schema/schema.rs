@@ -51,6 +51,8 @@ diesel::table! {
         end_time -> Nullable<Timestamptz>,
         service_offering_id -> Nullable<Int4>,
         offering_price -> Float8,
+        chat_id -> Int4,
+        creation_time -> Timestamptz,
     }
 }
 
@@ -231,6 +233,7 @@ diesel::table! {
 diesel::joinable!(address_assignments -> addresses (address_id));
 diesel::joinable!(address_assignments -> professional_profiles (professional_profile_id));
 diesel::joinable!(booking_assignments -> bookings (appointment_id));
+diesel::joinable!(bookings -> chat (chat_id));
 diesel::joinable!(bookings -> service_offerings (service_offering_id));
 diesel::joinable!(business_hours -> professional_profiles (professional_profile_id));
 diesel::joinable!(message -> chat (chat_id));

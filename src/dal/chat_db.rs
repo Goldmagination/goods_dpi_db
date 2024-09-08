@@ -1,12 +1,15 @@
 use std::collections::HashMap;
 
 use crate::db::Pool;
+use crate::models::booking_aggregate::{
+    booking::Booking, booking_assignment::BookingAssignment, booking_status::BookingStatus,
+};
 use crate::models::chat_aggregate::{
-    chat::Chat, chat::NewChat, message::Message, message::NewMessage,
+    chat::Chat, chat::ChatItem, chat::NewChat, message::Message, message::NewMessage,
 };
 use crate::models::dtos::chat_dto::ChatDTO;
 use crate::models::dtos::message_dto::{MessageAssignmentDTO, MessageDTO};
-use crate::schema::schema::{chat, message, message_assignments, professional_profiles};
+use crate::schema::schema::{bookings, chat, message, message_assignments, professional_profiles};
 use actix_web::{web, Error as ActixError};
 use chrono::{NaiveDateTime, Utc};
 use diesel::prelude::*;
@@ -16,13 +19,33 @@ pub fn get_messages_for_chat(
     chat_id_val: i32,
     limit_val: i64,
     offset_val: i64,
-) -> QueryResult<Vec<Message>> {
-    message::table
+) -> QueryResult<Vec<ChatItem>> {
+    let messages: Vec<ChatItem> = message::table
         .filter(message::chat_id.eq(chat_id_val))
         .order(message::timestamp.desc())
         .limit(limit_val)
         .offset(offset_val)
-        .load::<Message>(conn)
+        .load::<Message>(conn)?
+        .into_iter()
+        .map(ChatItem::Message)
+        .collect();
+
+    let bookings: Vec<ChatItem> = bookings::table
+        .filter(bookings::chat_id.eq(chat_id_val))
+        .order(bookings::date_time.desc())
+        .limit(limit_val)
+        .offset(offset_val)
+        .load::<Booking>(conn)?
+        .into_iter()
+        .map(ChatItem::Booking)
+        .collect();
+
+    let mut chat_items = Vec::new();
+    chat_items.extend(messages);
+    chat_items.extend(bookings);
+    chat_items.sort_by(|a, b| a.get_time().cmp(&b.get_time()).reverse());
+
+    Ok(chat_items)
 }
 
 pub fn get_chats_for_user(conn: &mut PgConnection, user_uid: &str) -> QueryResult<Vec<ChatDTO>> {
@@ -150,7 +173,7 @@ pub fn read_message(conn: &mut PgConnection, message_id: &i32) -> QueryResult<Me
         .get_result(conn)
 }
 
-fn get_or_create_chat(
+pub fn get_or_create_chat(
     conn: &mut PgConnection,
     user_uid: &str,
     professional_profile_uid: &str,
