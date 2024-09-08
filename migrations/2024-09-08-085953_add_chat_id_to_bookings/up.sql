@@ -2,6 +2,9 @@
 ALTER TABLE bookings
 ADD COLUMN chat_id INTEGER;
 
+ALTER TABLE bookings
+ADD COLUMN service_offering_name VARCHAR(255);
+
 UPDATE bookings
 SET chat_id = 1
 WHERE chat_id IS NULL;

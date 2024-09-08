@@ -16,6 +16,7 @@ pub struct Booking {
     pub service_offering_id: Option<i32>,
     pub offering_price: f64,
     pub chat_id: i32,
+    pub service_offering_name: Option<String>,
     pub creation_time: DateTime<Utc>,
 }
 #[derive(Insertable, Serialize, Deserialize)]
@@ -30,5 +31,6 @@ pub struct NewBooking {
     pub service_offering_id: Option<i32>,
     pub offering_price: f64,
     pub chat_id: i32,
+    pub service_offering_name: Option<String>,
     pub creation_time: DateTime<Utc>,
 }

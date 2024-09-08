@@ -7,6 +7,9 @@ DROP CONSTRAINT fk_chat_id;
 ALTER TABLE bookings
 DROP COLUMN chat_id;
 
+ALTER TABLE bookings
+DROP COLUMN service_offering_name;
+
 -- Drop the creation_time column
 ALTER TABLE bookings
 DROP COLUMN creation_time;

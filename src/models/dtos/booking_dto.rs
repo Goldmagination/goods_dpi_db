@@ -12,5 +12,6 @@ pub struct BookingDTO {
     pub category_id: i32,
     pub offering_id: i32,
     pub offering_price: f64,
+    pub service_offering_name: String,
     pub image_urls: Option<Vec<String>>,
 }

@@ -40,6 +40,7 @@ pub async fn place_booking(
                     description: booking_dto.description,
                     category_id: booking_dto.category_id,
                     service_offering_id: Some(booking_dto.offering_id),
+                    service_offering_name: Some(booking_dto.service_offering_name),
                     offering_price: booking_dto.offering_price,
                     chat_id,
                     creation_time: Utc::now(),

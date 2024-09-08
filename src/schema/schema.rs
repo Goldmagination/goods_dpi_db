@@ -52,6 +52,8 @@ diesel::table! {
         service_offering_id -> Nullable<Int4>,
         offering_price -> Float8,
         chat_id -> Int4,
+        #[max_length = 255]
+        service_offering_name -> Nullable<Varchar>,
         creation_time -> Timestamptz,
     }
 }
