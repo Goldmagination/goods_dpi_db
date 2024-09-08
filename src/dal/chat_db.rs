@@ -172,6 +172,98 @@ pub fn read_message(conn: &mut PgConnection, message_id: &i32) -> QueryResult<Me
         .set(message::is_read.eq(true))
         .get_result(conn)
 }
+pub fn retrieve_chat(
+    conn: &mut PgConnection,
+    user_uid: &str,
+    professional_profile_uid: &str,
+) -> QueryResult<Option<ChatDTO>> {
+    let chat = chat::table
+        .filter(
+            chat::user_uid
+                .eq(user_uid)
+                .and(chat::professional_profile_uid.eq(professional_profile_uid)),
+        )
+        .or_filter(
+            chat::user_uid
+                .eq(professional_profile_uid)
+                .and(chat::professional_profile_uid.eq(user_uid)),
+        )
+        .first::<Chat>(conn)
+        .optional()?;
+
+    let chat = match chat {
+        Some(c) => c,
+        None => return Ok(None),
+    };
+
+    let latest_message: Option<(i32, i32, String, String, NaiveDateTime, bool, String)> =
+        message::table
+            .filter(message::chat_id.eq(chat.id))
+            .order(message::timestamp.desc())
+            .select((
+                message::id,
+                message::chat_id,
+                message::sender_uid,
+                message::text,
+                message::timestamp,
+                message::is_read,
+                message::receiver_uid,
+            ))
+            .first(conn)
+            .optional()?;
+
+    let latest_message = match latest_message {
+        Some(msg) => msg,
+        None => {
+            // No messages for this chat, return the chat DTO without messages
+            return Ok(Some(ChatDTO::chat_to_dto(chat, String::new(), None, None)));
+        }
+    };
+
+    let message_assignment: Option<(i32, String)> = message_assignments::table
+        .filter(message_assignments::message_id.eq(latest_message.0)) // message_id
+        .select((
+            message_assignments::message_id,
+            message_assignments::image_url,
+        ))
+        .first(conn)
+        .optional()?;
+
+    let assignment_dto = message_assignment
+        .map(|(message_id, image_url)| MessageAssignmentDTO::to_dto(message_id, image_url));
+
+    let message_dto = MessageDTO::to_dto(
+        latest_message.0, // message id
+        latest_message.1, // chat id
+        latest_message.2, // sender_uid
+        latest_message.3, // text
+        latest_message.4, // timestamp
+        latest_message.5, // is_read
+        latest_message.6, // receiver_uid
+        assignment_dto,   // assignment
+    );
+
+    let professional_profile = professional_profiles::table
+        .filter(professional_profiles::professional_profile_uid.eq(&chat.professional_profile_uid))
+        .select((
+            professional_profiles::professional_name,
+            professional_profiles::image_url,
+        ))
+        .first::<(String, Option<String>)>(conn)
+        .optional()?;
+
+    let (professional_name, image_url) = match professional_profile {
+        Some((name, img_url)) => (name, img_url),
+        None => (String::new(), None),
+    };
+
+    Ok(Some(ChatDTO::chat_to_dto(
+        chat,
+        professional_name,
+        image_url,
+        Some(vec![message_dto]),
+    )))
+}
 
 pub fn get_or_create_chat(
     conn: &mut PgConnection,

@@ -265,6 +265,29 @@ async fn verify_token_from_request(req: &HttpRequest) -> bool {
         false
     }
 }
+pub async fn retrieve_chat(
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+    db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
+) -> impl Responder {
+    if !verify_token_from_request(&req).await {
+        return HttpResponse::Unauthorized().body("Invalid or missing token");
+    }
+
+    let (user_uid, professional_profile_uid) = path.into_inner();
+    let mut conn = db_pool.get().expect("Failed to get DB connection");
+
+    match chat_db::retrieve_chat(&mut conn, &user_uid, &professional_profile_uid) {
+        Ok(chat) => HttpResponse::Ok().json(chat),
+        Err(_) => HttpResponse::InternalServerError().json(ApiResponse {
+            status: "error".to_string(),
+            message: ErrorMessage {
+                error: "Failed to retrieve or create chat".to_string(),
+                details: None,
+            },
+        }),
+    }
+}
 
 async fn verify_token(token: &str) -> Result<bool, reqwest::Error> {
     let api_key = env::var("FIREBASE_API_KEY").expect("FIREBASE_API_KEY must be set");
