@@ -1,4 +1,7 @@
+use crate::models::dtos::user_dto::UserDTO;
 use crate::models::user_aggregate::{user::NewUser, user::User};
+use crate::schema::schema::bookings::{self, customer_uid};
+use crate::schema::schema::message::dsl::*;
 use crate::schema::schema::users::dsl::*;
 use diesel::prelude::*;
 use diesel::result::Error;
@@ -6,10 +9,21 @@ use diesel::result::Error;
 pub async fn get_user_by_email(
     conn: &mut PgConnection,
     user_email: &str,
-) -> Result<User, diesel::result::Error> {
+) -> Result<UserDTO, diesel::result::Error> {
     let user: User = users.filter(email.eq(user_email)).first(conn)?;
+    let unread_messages = message
+        .filter(is_read.eq(false))
+        .filter(receiver_uid.eq(&user.user_uid))
+        .count()
+        .get_result::<i64>(conn)?;
+    let active_bookings = bookings::table
+        .filter(bookings::status.eq_any(vec![1, 4, 7]))
+        .filter(bookings::customer_uid.eq(&user.user_uid))
+        .count()
+        .get_result::<i64>(conn)?;
 
-    Ok(user)
+    let user_dto: UserDTO = UserDTO::new(user, unread_messages, active_bookings);
+    Ok(user_dto)
 }
 
 pub fn save_user_to_database(

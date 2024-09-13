@@ -7,6 +7,7 @@ use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::env;
 use tracing::{error, info};
 
@@ -15,16 +16,19 @@ const FIREBASE_VALIDATE_TOKEN_URL: &str =
 
 #[derive(Serialize, Deserialize, Debug)]
 struct IncomingMessage {
-    message: String,
+    message: Option<String>,
     receiver_id: String,
+    image_urls: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct OutgoingMessage {
     sender_uid: String,
     receiver_uid: String,
-    text: String,
+    text: Option<String>,
+    assignments: Option<Vec<HashMap<String, String>>>,
     timestamp: chrono::DateTime<Utc>,
+    is_read: bool,
 }
 
 #[derive(Serialize)]
@@ -131,19 +135,49 @@ impl ChatWebSocket {
         user_uid: String,
         parsed_message: IncomingMessage,
     ) -> Result<String, Error> {
+        if parsed_message.message.is_none()
+            && parsed_message
+                .image_urls
+                .as_ref()
+                .map_or(true, |v| v.is_empty())
+        {
+            return Err(actix_web::error::ErrorBadRequest(
+                "Message must contain text or images.",
+            ));
+        }
+
+        // Send the message and get the message_id
         let message_id = chat_db::send_message(
-            db_pool,
+            db_pool.clone(),
             user_uid.clone(),
             parsed_message.receiver_id.clone(),
             parsed_message.message.clone(),
+            parsed_message.image_urls.clone(),
         )
         .await?;
+
+        let assignments = if let Some(image_urls) = parsed_message.image_urls.clone() {
+            let assignments: Vec<HashMap<String, String>> = image_urls
+                .into_iter()
+                .map(|image_url| {
+                    let mut assignment = HashMap::new();
+                    assignment.insert("message_id".to_string(), message_id.to_string());
+                    assignment.insert("image_url".to_string(), image_url);
+                    assignment
+                })
+                .collect();
+            Some(assignments)
+        } else {
+            None
+        };
 
         let outgoing_message = OutgoingMessage {
             sender_uid: user_uid,
             receiver_uid: parsed_message.receiver_id,
             text: parsed_message.message,
+            assignments,
             timestamp: Utc::now(),
+            is_read: false,
         };
 
         let success_message = SuccessMessage {
@@ -154,8 +188,7 @@ impl ChatWebSocket {
         Ok(serde_json::to_string(&ApiResponse {
             status: "success".to_string(),
             message: success_message,
-        })
-        .unwrap())
+        })?)
     }
 }
 

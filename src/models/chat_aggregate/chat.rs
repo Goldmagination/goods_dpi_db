@@ -1,5 +1,4 @@
-use super::message::Message;
-use crate::models::booking_aggregate::booking::Booking;
+use crate::models::{booking_aggregate::booking::Booking, dtos::message_dto::MessageDTO};
 use crate::schema::schema::chat;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
@@ -7,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ChatItem {
-    Message(Message),
+    Message(MessageDTO),
     Booking(Booking),
 }
 impl ChatItem {

@@ -92,7 +92,7 @@ diesel::table! {
     message (id) {
         id -> Int4,
         chat_id -> Int4,
-        text -> Text,
+        text -> Nullable<Text>,
         timestamp -> Timestamp,
         is_read -> Bool,
         #[max_length = 255]

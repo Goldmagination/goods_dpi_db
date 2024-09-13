@@ -37,6 +37,7 @@ mod models {
         pub mod review_dto;
         pub mod subcategory_dto;
         pub mod task_dto;
+        pub mod user_dto;
     }
     pub mod user_aggregate {
         pub mod new_user;

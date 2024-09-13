@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct Message {
     pub id: i32,
     pub chat_id: i32,
-    pub text: String,
+    pub text: Option<String>,
     pub timestamp: NaiveDateTime,
     pub is_read: bool,
     pub receiver_uid: String,
@@ -20,7 +20,7 @@ pub struct NewMessage {
     pub chat_id: i32,
     pub sender_uid: String,
     pub receiver_uid: String,
-    pub text: String,
+    pub text: Option<String>,
     pub timestamp: NaiveDateTime,
     pub is_read: bool,
 }
@@ -30,7 +30,7 @@ impl NewMessage {
         chat_id: i32,
         receiver_id: String,
         sender_id: String,
-        text: String,
+        text: Option<String>,
     ) -> Self {
         Self {
             chat_id,
