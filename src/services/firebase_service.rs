@@ -1,6 +1,4 @@
 use crate::errors::firebase_errors::FirebaseServiceError;
-use base64::engine::general_purpose;
-use base64::Engine;
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -119,45 +117,4 @@ pub async fn extract_uid_from_firebase_token(token: &str) -> Result<String, Fire
         .map_err(|_| FirebaseServiceError::JwtDecodeError)?;
 
     Ok(token_data.claims.sub)
-}
-
-pub async fn upload_image_to_firebase(
-    image_bytes: &String,
-    file_name: String,
-) -> Result<String, FirebaseServiceError> {
-    let image_bytes = general_purpose::STANDARD
-        .decode(image_bytes)
-        .map_err(FirebaseServiceError::Base64DecodeError)?;
-    let bucket_name = env::var("FIREBASE_BUCKET_NAME")?;
-    let url = format!(
-        "https://firebasestorage.googleapis.com/v0/b/{}/o?name={}",
-        bucket_name, file_name
-    );
-
-    let client = Client::new();
-    let response = client
-        .post(&url)
-        .body(image_bytes)
-        .header("Content-Type", "image/png")
-        .send()
-        .await?;
-
-    if response.status().is_success() {
-        // Parsing the response to get the image download URL
-        let json_response: serde_json::Value = response.json().await?;
-        if let Some(download_url) = json_response["downloadTokens"].as_str() {
-            Ok(format!(
-                "https://firebasestorage.googleapis.com/v0/b/{}/o/{}?alt=media&token={}",
-                bucket_name, file_name, download_url
-            ))
-        } else {
-            Err(FirebaseServiceError::FirebaseApiError(
-                "Failed to retrieve download URL from Firebase".to_string(),
-            ))
-        }
-    } else {
-        Err(FirebaseServiceError::FirebaseApiError(
-            "Failed to upload image to Firebase".to_string(),
-        ))
-    }
 }

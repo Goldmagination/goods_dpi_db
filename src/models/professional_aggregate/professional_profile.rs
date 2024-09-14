@@ -1,5 +1,5 @@
-use diesel::prelude::*;
 use crate::schema::schema::professional_profiles;
+use diesel::prelude::*;
 
 #[derive(Queryable, Identifiable, Selectable)]
 #[diesel(table_name = professional_profiles)]
@@ -13,6 +13,7 @@ pub struct ProfessionalProfile {
     pub image_url: Option<String>,
     pub average_rating: Option<f64>,
     pub remote_available: bool,
+    pub professional_profile_uid: String,
 }
 
 impl ProfessionalProfile {
@@ -20,10 +21,9 @@ impl ProfessionalProfile {
         let sum_ratings: f64 = ratings.iter().sum();
         let count_ratings = ratings.len() as f64;
         self.average_rating = if count_ratings > 0.0 {
-            Some(sum_ratings / count_ratings) 
+            Some(sum_ratings / count_ratings)
         } else {
-            None 
+            None
         };
     }
-
 }

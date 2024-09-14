@@ -1,10 +1,12 @@
 mod db;
 mod errors {
+    pub mod booking_errors;
     pub mod firebase_errors;
     pub mod task_errors;
 }
 mod dal {
     pub mod address_db;
+    pub mod booking_db;
     pub mod category_db;
     pub mod chat_db;
     pub mod professional_db;
@@ -27,6 +29,7 @@ mod models {
     pub mod address_assignments;
     pub mod dtos {
         pub mod address_dto;
+        pub mod booking_dto;
         pub mod chat_dto;
         pub mod message_dto;
         pub mod professional_profile_detail_dto;
@@ -34,6 +37,7 @@ mod models {
         pub mod review_dto;
         pub mod subcategory_dto;
         pub mod task_dto;
+        pub mod user_dto;
     }
     pub mod user_aggregate {
         pub mod new_user;
@@ -54,8 +58,10 @@ mod models {
         pub mod review;
         pub mod review_content_assignments;
     }
-    pub mod appointment_aggregate {
-        pub mod appointment_assignment;
+    pub mod booking_aggregate {
+        pub mod booking;
+        pub mod booking_assignment;
+        pub mod booking_status;
     }
     pub mod chat_aggregate {
         pub mod chat;
@@ -92,7 +98,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(
                 Cors::default()
-                    .allowed_origin("https://example.com")
+                    .allowed_origin("*")
                     .allowed_methods(vec!["GET", "POST"])
                     .max_age(3600),
             )

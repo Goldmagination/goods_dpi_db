@@ -1,7 +1,10 @@
+use crate::dal::booking_db;
 use crate::dal::professional_profile_db;
-use crate::db::Pool;
-use crate::services::firebase_service::verify_token;
+use crate::models::dtos::booking_dto::BookingDTO;
+use crate::services::firebase_service::{extract_uid_from_firebase_token, verify_token};
 use actix_web::{http::header::HeaderValue, web, HttpRequest, HttpResponse, Responder};
+use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -14,7 +17,7 @@ pub struct ProfessionalProfileQuery {
 pub async fn get_professional_profile_handler(
     req: HttpRequest,
     query_info: web::Query<ProfessionalProfileQuery>,
-    db_pool: web::Data<Pool>,
+    db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
 ) -> impl Responder {
     // Verify the token
     let token = _extract_token_from_auth_header(req.headers().get("Authorization"));
@@ -73,7 +76,7 @@ pub async fn get_professional_profile_handler(
 pub async fn get_profile_by_id(
     req: HttpRequest,
     profile_id: web::Path<i32>,
-    db_pool: web::Data<Pool>,
+    db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
 ) -> impl Responder {
     // Verify the token
     let token = _extract_token_from_auth_header(req.headers().get("Authorization"));
@@ -112,4 +115,40 @@ fn _extract_token_from_auth_header(auth_header: Option<&HeaderValue>) -> Option<
         .split_whitespace()
         .nth(1)
         .map(String::from)
+}
+pub async fn book_service_handler(
+    req: HttpRequest,
+    db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
+    booking_dto: web::Json<BookingDTO>,
+    profile_id: web::Path<i32>,
+) -> impl Responder {
+    let token = req
+        .headers()
+        .get("Authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|auth_header| auth_header.split_whitespace().nth(1)); // Assuming "Bearer <token>"
+
+    match token {
+        Some(t) => match verify_token(&t).await {
+            Ok(is_valid) if is_valid => match extract_uid_from_firebase_token(&t).await {
+                Ok(user_uid) => {
+                    match booking_db::place_booking(
+                        db_pool.clone(),
+                        user_uid,
+                        booking_dto.into_inner(),
+                        profile_id.into_inner(),
+                    )
+                    .await
+                    {
+                        Ok(booking) => HttpResponse::Ok().json(booking),
+                        Err(_) => HttpResponse::InternalServerError().finish(),
+                    }
+                }
+                Err(_) => HttpResponse::Unauthorized().body("Invalid user"),
+            },
+            Ok(_) => HttpResponse::Unauthorized().body("Invalid token"),
+            Err(_) => HttpResponse::InternalServerError().finish(),
+        },
+        None => HttpResponse::Unauthorized().body("No token"),
+    }
 }

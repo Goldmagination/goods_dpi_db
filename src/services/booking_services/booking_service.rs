@@ -1,14 +1,14 @@
-use crate::dal::task_db;
-use crate::models::dtos::task_dto::TaskDto;
+use crate::dal::booking_db;
+use crate::models::dtos::booking_dto::BookingDTO;
 use crate::services::firebase_service::{extract_uid_from_firebase_token, verify_token};
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::PgConnection;
 
-pub async fn place_task_handler(
+pub async fn book_service_handler(
     req: HttpRequest,
     db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
-    task_dto: web::Json<TaskDto>,
+    booking_dto: web::Json<BookingDTO>,
 ) -> impl Responder {
     let token = req
         .headers()
@@ -20,10 +20,14 @@ pub async fn place_task_handler(
         Some(t) => match verify_token(&t).await {
             Ok(is_valid) if is_valid => match extract_uid_from_firebase_token(&t).await {
                 Ok(user_uid) => {
-                    match task_db::place_task(db_pool.clone(), user_uid, task_dto.into_inner())
-                        .await
+                    match booking_db::place_booking(
+                        db_pool.clone(),
+                        user_uid,
+                        booking_dto.into_inner(),
+                    )
+                    .await
                     {
-                        Ok(task) => HttpResponse::Ok().json(task),
+                        Ok(booking) => HttpResponse::Ok().json(booking),
                         Err(_) => HttpResponse::InternalServerError().finish(),
                     }
                 }
