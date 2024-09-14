@@ -1,11 +1,11 @@
 use crate::dal::chat_db;
 use actix::{fut::ActorFutureExt, Actor, ActorContext, AsyncContext, StreamHandler};
+use actix_web::http::header::HeaderValue;
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
 use chrono::Utc;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
-use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;

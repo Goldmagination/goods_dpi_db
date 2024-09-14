@@ -98,7 +98,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(
                 Cors::default()
-                    .allowed_origin("https://example.com")
+                    .allowed_origin("*")
                     .allowed_methods(vec!["GET", "POST"])
                     .max_age(3600),
             )
