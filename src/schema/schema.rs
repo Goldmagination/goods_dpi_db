@@ -21,7 +21,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    appointment_assignments (id) {
+    booking_assignments (id) {
         id -> Int4,
         appointment_id -> Int4,
         #[max_length = 255]
@@ -30,14 +30,31 @@ diesel::table! {
 }
 
 diesel::table! {
-    appointments (id) {
+    booking_status (id) {
         id -> Int4,
-        customer_id -> Int4,
-        professional_profile_id -> Int4,
-        date_time -> Timestamp,
+        #[max_length = 255]
+        description -> Varchar,
+    }
+}
+
+diesel::table! {
+    bookings (id) {
+        id -> Int4,
+        #[max_length = 255]
+        customer_uid -> Varchar,
+        #[max_length = 255]
+        professional_profile_uid -> Varchar,
+        date_time -> Nullable<Timestamptz>,
         status -> Int4,
-        message -> Nullable<Text>,
+        description -> Nullable<Text>,
         category_id -> Int4,
+        end_time -> Nullable<Timestamptz>,
+        service_offering_id -> Nullable<Int4>,
+        offering_price -> Float8,
+        chat_id -> Int4,
+        #[max_length = 255]
+        service_offering_name -> Nullable<Varchar>,
+        creation_time -> Timestamptz,
     }
 }
 
@@ -75,7 +92,7 @@ diesel::table! {
     message (id) {
         id -> Int4,
         chat_id -> Int4,
-        text -> Text,
+        text -> Nullable<Text>,
         timestamp -> Timestamp,
         is_read -> Bool,
         #[max_length = 255]
@@ -178,21 +195,28 @@ diesel::table! {
 }
 
 diesel::table! {
-    tasks (id) {
+    task (id) {
         id -> Int4,
-        user_id -> Int4,
-        creation_time -> Timestamp,
+        #[max_length = 255]
+        user_uid -> Varchar,
+        creation_time -> Timestamptz,
         description -> Nullable<Text>,
         address_id -> Nullable<Int4>,
-        price -> Nullable<Int4>,
+        title -> Varchar,
+        min_price -> Nullable<Float8>,
+        max_price -> Nullable<Float8>,
+        is_flexible_timing -> Bool,
+        scheduled_date -> Nullable<Date>,
+        scheduled_time -> Nullable<Time>,
+        category_id -> Int4,
     }
 }
 
 diesel::table! {
-    tasks_subcategories (id) {
+    task_assignments (id) {
         id -> Int4,
         task_id -> Int4,
-        subcategory_id -> Int4,
+        image_url -> Varchar,
     }
 }
 
@@ -210,9 +234,9 @@ diesel::table! {
 
 diesel::joinable!(address_assignments -> addresses (address_id));
 diesel::joinable!(address_assignments -> professional_profiles (professional_profile_id));
-diesel::joinable!(appointment_assignments -> appointments (appointment_id));
-diesel::joinable!(appointments -> professional_profiles (professional_profile_id));
-diesel::joinable!(appointments -> users (customer_id));
+diesel::joinable!(booking_assignments -> bookings (appointment_id));
+diesel::joinable!(bookings -> chat (chat_id));
+diesel::joinable!(bookings -> service_offerings (service_offering_id));
 diesel::joinable!(business_hours -> professional_profiles (professional_profile_id));
 diesel::joinable!(message -> chat (chat_id));
 diesel::joinable!(message_assignments -> message (message_id));
@@ -223,16 +247,15 @@ diesel::joinable!(review_content_assignments -> review (review_id));
 diesel::joinable!(service_offerings -> professional_profiles (professional_profile_id));
 diesel::joinable!(service_offerings -> subcategories (subcategory_id));
 diesel::joinable!(subcategories -> categories (category_id));
-diesel::joinable!(tasks -> addresses (address_id));
-diesel::joinable!(tasks -> users (user_id));
-diesel::joinable!(tasks_subcategories -> subcategories (subcategory_id));
-diesel::joinable!(tasks_subcategories -> tasks (task_id));
+diesel::joinable!(task -> addresses (address_id));
+diesel::joinable!(task_assignments -> task (task_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     address_assignments,
     addresses,
-    appointment_assignments,
-    appointments,
+    booking_assignments,
+    booking_status,
+    bookings,
     business_hours,
     categories,
     chat,
@@ -245,7 +268,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     service_offerings,
     spatial_ref_sys,
     subcategories,
-    tasks,
-    tasks_subcategories,
+    task,
+    task_assignments,
     users,
 );

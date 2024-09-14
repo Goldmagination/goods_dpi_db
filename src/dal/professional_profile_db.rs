@@ -1,18 +1,16 @@
-use crate::models::
-{
+use crate::models::{
     address::*,
     address_assignments::*,
-    dtos::professional_profiles_dto::*,
-    dtos::professional_profile_detail_dto::*,
-    dtos::review_dto::*,
+    category_aggregate::category::*,
     dtos::address_dto::*,
+    dtos::professional_profile_detail_dto::*,
+    dtos::professional_profiles_dto::*,
+    dtos::review_dto::*,
+    professional_aggregate::business_hour::*,
     professional_aggregate::professional_profile::*,
     professional_aggregate::service_offering::*,
-    professional_aggregate::business_hour::*,
-    category_aggregate::category::*,
     review_aggregate::review::*,
-    review_aggregate::review_content_assignments::*
-    // professional_aggregate::service_offering::*
+    review_aggregate::review_content_assignments::*, // professional_aggregate::service_offering::*
 };
 // use crate::schema::schema::{
 //     professional_profiles,
@@ -29,36 +27,38 @@ use crate::models::
 //     service_offerings::dsl::*
 // };
 use crate::schema::schema::{
-    addresses,
-    professional_profiles, 
-    categories,
-    subcategories,
-    business_hours,
+    addresses, business_hours, categories, professional_profiles, subcategories,
 };
-use chrono::{Utc, Datelike};
+use chrono::{Datelike, Utc};
 use diesel::prelude::*;
 use diesel::result::Error;
 
-pub async fn search_services(subcategory_ids_from_user: Vec<i32>, lat_from_user:f64, lng_from_user:f64, conn: &mut PgConnection) -> Result<Vec<ProfessionalProfileDTO>, Error> {
+pub async fn search_services(
+    subcategory_ids_from_user: Vec<i32>,
+    lat_from_user: f64,
+    lng_from_user: f64,
+    conn: &mut PgConnection,
+) -> Result<Vec<ProfessionalProfileDTO>, Error> {
     let radius = 5000.0; // 5 km in meters
     let subcategory_ids_str = subcategory_ids_from_user
-    .iter()
-    .map(|id| id.to_string())
-    .collect::<Vec<_>>()
-    .join(", ");
+        .iter()
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
     let today = Utc::now().naive_utc().date();
     let current_day_of_week = today.weekday().num_days_from_sunday() as i32; // Sunday is 0, Saturday is 6
 
-    let raw_sql = format!(r#"
+    let raw_sql = format!(
+        r#"
     WITH RelevantProfiles AS (
         SELECT DISTINCT professional_profiles.id
         FROM professional_profiles
         INNER JOIN service_offerings ON professional_profiles.id = service_offerings.professional_profile_id
         WHERE service_offerings.subcategory_id IN ({})
     ), RelevantBusinessHours AS (
-        SELECT 
-            business_hours.professional_profile_id, 
-            business_hours.opening_time, 
+        SELECT
+            business_hours.professional_profile_id,
+            business_hours.opening_time,
             business_hours.closing_time
         FROM business_hours
         WHERE business_hours.day_of_week = {}
@@ -70,12 +70,13 @@ pub async fn search_services(subcategory_ids_from_user: Vec<i32>, lat_from_user:
         professional_profiles.delivery_enabled,
         professional_profiles.remote_available,
         professional_profiles.average_rating,
-        addresses.street, 
-        addresses.city, 
-        addresses.zip, 
-        addresses.lng, 
-        addresses.lat, 
-        categories.name AS category_name, 
+        professional_profile_uid,
+        addresses.street,
+        addresses.city,
+        addresses.zip,
+        addresses.lng,
+        addresses.lat,
+        categories.name AS category_name,
         professionals.name AS professional_name,
         COUNT(DISTINCT review.id) AS review_count,
         RelevantBusinessHours.opening_time,
@@ -83,98 +84,101 @@ pub async fn search_services(subcategory_ids_from_user: Vec<i32>, lat_from_user:
     FROM RelevantProfiles
     INNER JOIN professional_profiles ON RelevantProfiles.id = professional_profiles.id
     INNER JOIN professionals ON professional_profiles.professional_id = professionals.id
-    INNER JOIN address_assignments ON professional_profiles.id = address_assignments.professional_profile_id 
-    INNER JOIN addresses ON address_assignments.address_id = addresses.id 
-    INNER JOIN service_offerings ON professional_profiles.id = service_offerings.professional_profile_id 
+    INNER JOIN address_assignments ON professional_profiles.id = address_assignments.professional_profile_id
+    INNER JOIN addresses ON address_assignments.address_id = addresses.id
+    INNER JOIN service_offerings ON professional_profiles.id = service_offerings.professional_profile_id
     INNER JOIN subcategories ON service_offerings.subcategory_id = subcategories.id
     INNER JOIN categories ON subcategories.category_id = categories.id
-    LEFT JOIN review ON professional_profiles.id = review.professional_profile_id 
+    LEFT JOIN review ON professional_profiles.id = review.professional_profile_id
     INNER JOIN RelevantBusinessHours ON professional_profiles.id = RelevantBusinessHours.professional_profile_id
     WHERE
         ST_DWithin(
-            geography(ST_MakePoint(addresses.lng::double precision, addresses.lat::double precision)), 
-            geography(ST_MakePoint({}, {})), 
-            {} 
+            geography(ST_MakePoint(addresses.lng::double precision, addresses.lat::double precision)),
+            geography(ST_MakePoint({}, {})),
+            {}
         )
-    GROUP BY 
-        professional_profiles.id, 
-        addresses.street, addresses.city, addresses.zip, addresses.lng, addresses.lat, 
+    GROUP BY
+        professional_profiles.id,
+        addresses.street, addresses.city, addresses.zip, addresses.lng, addresses.lat,
         categories.name, professionals.name,
         RelevantBusinessHours.opening_time,
         RelevantBusinessHours.closing_time;
-    "#, subcategory_ids_str, current_day_of_week, lng_from_user, lat_from_user, radius);
+    "#,
+        subcategory_ids_str, current_day_of_week, lng_from_user, lat_from_user, radius
+    );
 
+    let professional_profiles_from_db: Vec<ProfessionalProfileDTO> =
+        diesel::sql_query(raw_sql).load::<ProfessionalProfileDTO>(conn)?;
 
-    let professional_profiles_from_db: Vec<ProfessionalProfileDTO> = diesel::sql_query(raw_sql)
-        .load::<ProfessionalProfileDTO>(conn)?;
-
-
-    
     Ok(professional_profiles_from_db)
 }
 
-pub async fn get_profile(conn: &mut PgConnection, profile_id: i32)-> Result<ProfessionalProfileDetailDTO, Error> {
-    
-    let profile = professional_profiles::table.find(profile_id)
-    .select(ProfessionalProfile::as_select())
-    .first::<ProfessionalProfile>(conn)?;
+pub async fn get_profile(
+    conn: &mut PgConnection,
+    profile_id: i32,
+) -> Result<ProfessionalProfileDetailDTO, Error> {
+    let profile = professional_profiles::table
+        .find(profile_id)
+        .select(ProfessionalProfile::as_select())
+        .first::<ProfessionalProfile>(conn)?;
 
     let address_from_db = AddressAssignments::belonging_to(&profile)
-    .inner_join(addresses::table)
-    .select(Address::as_select())
-    .first::<Address>(conn).optional();
+        .inner_join(addresses::table)
+        .select(Address::as_select())
+        .first::<Address>(conn)
+        .optional();
 
     let address = match address_from_db {
         Ok(Some(addr)) => Some(AddressDTO::address_to_dto(&addr)),
         Ok(None) => None,
-        Err(_) => {
-            None
-        }
+        Err(_) => None,
     };
 
-
-    let category = categories::table.find(profile.category_id)
-    .select(Category::as_select())
-    .first(conn)?;
+    let category = categories::table
+        .find(profile.category_id)
+        .select(Category::as_select())
+        .first(conn)?;
 
     let service_offerings_from_db = ServiceOffering::belonging_to(&profile)
-    .select(ServiceOffering::as_select())
-    .load(conn)?;
+        .select(ServiceOffering::as_select())
+        .load(conn)?;
 
-    let service_offerings = service_offerings_from_db.iter()
-    .map(|service_offering| {
-        // Query to get category_id from subcategory_id
-        let category_id: i32 = subcategories::table
-            .filter(subcategories::id.eq(service_offering.subcategory_id))
-            .select(subcategories::category_id)
-            .first(conn)
-            .expect("Failed to retrieve category_id");
+    let service_offerings = service_offerings_from_db
+        .iter()
+        .map(|service_offering| {
+            // Query to get category_id from subcategory_id
+            let category_id: i32 = subcategories::table
+                .filter(subcategories::id.eq(service_offering.subcategory_id))
+                .select(subcategories::category_id)
+                .first(conn)
+                .expect("Failed to retrieve category_id");
 
-        ServiceOfferingDTO::service_offering_to_dto(service_offering, category_id)
-    })
-    .collect();
-
+            ServiceOfferingDTO::service_offering_to_dto(service_offering, category_id)
+        })
+        .collect();
 
     let reviews_from_db = Review::belonging_to(&profile)
-    .select(Review::as_select())
-    .load::<Review>(conn)
-    .optional()?;
+        .select(Review::as_select())
+        .load::<Review>(conn)
+        .optional()?;
 
     let review_count = reviews_from_db.as_ref().map_or(0, |reviews| reviews.len()) as i64;
 
     let reviews = reviews_from_db.map(|reviews| {
-        reviews.iter().map(|review| { 
-            let review_content_assignments = ReviewContentAssignment::belonging_to(review)
-                .select(ReviewContentAssignment::as_select())
-                .load::<ReviewContentAssignment>(conn)
-                .unwrap_or_default();
+        reviews
+            .iter()
+            .map(|review| {
+                let review_content_assignments = ReviewContentAssignment::belonging_to(review)
+                    .select(ReviewContentAssignment::as_select())
+                    .load::<ReviewContentAssignment>(conn)
+                    .unwrap_or_default();
 
-            ReviewDTO::review_to_dto(review, &review_content_assignments)
-        }).collect::<Vec<ReviewDTO>>()
+                ReviewDTO::review_to_dto(review, &review_content_assignments)
+            })
+            .collect::<Vec<ReviewDTO>>()
     });
     let today = Utc::now().naive_utc().date();
     let day_of_week = today.weekday().num_days_from_sunday() as i32; // Sunday is 0, Saturday is 6
-
 
     let country_code = address.as_ref().map(|addr| &addr.state); // Replace with actual field
 
@@ -200,16 +204,16 @@ pub async fn get_profile(conn: &mut PgConnection, profile_id: i32)-> Result<Prof
             .first::<BusinessHours>(conn) // Use BusinessHours here
             .optional()?
     };
-    
-    
 
-// Check if the professional is available today
-let (opening_time, closing_time) = match business_hour {
-    Some(bh) if bh.is_available => (bh.opening_time, bh.closing_time),
-    _ => (None, None), // Not available today
-};
+    // Check if the professional is available today
+    let (opening_time, closing_time) = match business_hour {
+        Some(bh) if bh.is_available => (bh.opening_time, bh.closing_time),
+        _ => (None, None), // Not available today
+    };
     let final_profile = ProfessionalProfileDetailDTO {
         id: profile.id,
+        uid: profile.professional_profile_uid,
+        category_id: profile.category_id,
         professional_name: profile.professional_name,
         opening_time: opening_time,
         closing_time: closing_time,
@@ -222,9 +226,7 @@ let (opening_time, closing_time) = match business_hour {
         address: address,
         service_offerings: service_offerings,
         reviews: reviews,
-        review_count: review_count
+        review_count: review_count,
     };
     Ok(final_profile)
 }
-
-

@@ -1,10 +1,18 @@
+use crate::errors::firebase_errors::FirebaseServiceError;
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::env;
+use std::{collections::HashMap, env};
 
 const FIREBASE_SIGN_UP_URL: &str = "https://identitytoolkit.googleapis.com/v1/accounts:signUp";
 const FIREBASE_VALIDATE_TOKEN_URL: &str =
     "https://identitytoolkit.googleapis.com/v1/accounts:lookup";
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Claims {
+    sub: String,
+}
+
 #[derive(Serialize)]
 struct FirebaseRegisterRequest {
     email: String,
@@ -25,8 +33,8 @@ pub struct FirebaseRegisterResponse {
 pub async fn create_firebase_user(
     email: &str,
     password: &str,
-) -> Result<FirebaseRegisterResponse, String> {
-    let api_key = env::var("FIREBASE_API_KEY").expect("FIREBASE_API_KEY must be set");
+) -> Result<FirebaseRegisterResponse, FirebaseServiceError> {
+    let api_key = env::var("FIREBASE_API_KEY")?;
     let client = Client::new();
     let request_body = FirebaseRegisterRequest {
         email: email.to_string(),
@@ -38,25 +46,26 @@ pub async fn create_firebase_user(
         .post(format!("{}?key={}", FIREBASE_SIGN_UP_URL, api_key))
         .json(&request_body)
         .send()
-        .await;
+        .await?;
 
-    match response {
-        Ok(resp) => {
-            if resp.status().is_success() {
-                match resp.json::<FirebaseRegisterResponse>().await {
-                    Ok(data) => Ok(data),
-                    Err(_) => Err("Failed to parse Firebase response".to_string()),
-                }
-            } else {
-                // You might want to log the actual error or response body for debugging
-                Err("Failed to create user in Firebase".to_string())
-            }
-        }
-        Err(_) => Err("Failed to send request to Firebase".to_string()),
+    if response.status().is_success() {
+        response
+            .json::<FirebaseRegisterResponse>()
+            .await
+            .map_err(|_| {
+                FirebaseServiceError::FirebaseApiError(
+                    "Failed to parse Firebase response".to_string(),
+                )
+            })
+    } else {
+        Err(FirebaseServiceError::FirebaseApiError(
+            "Failed to create user in Firebase".to_string(),
+        ))
     }
 }
-pub async fn verify_token(token: &str) -> Result<bool, reqwest::Error> {
-    let api_key = env::var("FIREBASE_API_KEY").expect("FIREBASE_API_KEY must be set");
+
+pub async fn verify_token(token: &str) -> Result<bool, FirebaseServiceError> {
+    let api_key = env::var("FIREBASE_API_KEY")?;
     let url = format!("{}?key={}", FIREBASE_VALIDATE_TOKEN_URL, api_key);
     let client = reqwest::Client::new();
     let res = client
@@ -66,10 +75,46 @@ pub async fn verify_token(token: &str) -> Result<bool, reqwest::Error> {
         }))
         .send()
         .await?;
+    Ok(res.status().is_success())
+}
 
-    if res.status().is_success() {
-        Ok(true) // Token is valid
-    } else {
-        Ok(false) // Token is invalid
+async fn get_firebase_public_keys() -> Result<HashMap<String, DecodingKey>, FirebaseServiceError> {
+    let jwks_url =
+        "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
+    let client = Client::new();
+    let response = client
+        .get(jwks_url)
+        .send()
+        .await?
+        .json::<HashMap<String, String>>()
+        .await?;
+    let mut keys = HashMap::new();
+    for (kid, key) in response {
+        keys.insert(kid, DecodingKey::from_rsa_pem(key.as_bytes())?);
     }
+
+    Ok(keys)
+}
+
+pub async fn extract_uid_from_firebase_token(token: &str) -> Result<String, FirebaseServiceError> {
+    let header = decode_header(token).map_err(|_| FirebaseServiceError::JwtDecodeError)?;
+    let kid = header.kid.ok_or(FirebaseServiceError::MissingKidError)?;
+
+    let keys = get_firebase_public_keys().await?;
+    let key = keys
+        .get(&kid)
+        .ok_or(FirebaseServiceError::InvalidKidError)?;
+
+    let mut validation = Validation::new(Algorithm::RS256);
+    let firebase_project_id = env::var("FIREBASE_PROJECT_ID")?;
+    validation.set_audience(&[firebase_project_id.clone()]);
+    validation.set_issuer(&[format!(
+        "https://securetoken.google.com/{}",
+        firebase_project_id
+    )]);
+
+    let token_data = decode::<Claims>(token, key, &validation)
+        .map_err(|_| FirebaseServiceError::JwtDecodeError)?;
+
+    Ok(token_data.claims.sub)
 }

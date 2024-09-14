@@ -1,30 +1,34 @@
 use crate::dal::chat_db;
 use actix::{fut::ActorFutureExt, Actor, ActorContext, AsyncContext, StreamHandler};
+use actix_web::http::header::HeaderValue;
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
 use chrono::Utc;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
-use log::{error, info};
-use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::env;
+use tracing::{error, info};
 
 const FIREBASE_VALIDATE_TOKEN_URL: &str =
     "https://identitytoolkit.googleapis.com/v1/accounts:lookup";
 
 #[derive(Serialize, Deserialize, Debug)]
 struct IncomingMessage {
-    message: String,
+    message: Option<String>,
     receiver_id: String,
+    image_urls: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct OutgoingMessage {
     sender_uid: String,
     receiver_uid: String,
-    text: String,
+    text: Option<String>,
+    assignments: Option<Vec<HashMap<String, String>>>,
     timestamp: chrono::DateTime<Utc>,
+    is_read: bool,
 }
 
 #[derive(Serialize)]
@@ -66,7 +70,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for ChatWebSocket {
                 ctx.pong(&msg);
             }
             Ok(ws::Message::Close(reason)) => {
-                info!("WebSocket closing: {:?}", reason);
+                info!(reason = ?reason, "WebSocket closing");
                 ctx.close(reason);
                 ctx.stop();
             }
@@ -131,19 +135,49 @@ impl ChatWebSocket {
         user_uid: String,
         parsed_message: IncomingMessage,
     ) -> Result<String, Error> {
+        if parsed_message.message.is_none()
+            && parsed_message
+                .image_urls
+                .as_ref()
+                .map_or(true, |v| v.is_empty())
+        {
+            return Err(actix_web::error::ErrorBadRequest(
+                "Message must contain text or images.",
+            ));
+        }
+
+        // Send the message and get the message_id
         let message_id = chat_db::send_message(
-            db_pool,
+            db_pool.clone(),
             user_uid.clone(),
             parsed_message.receiver_id.clone(),
             parsed_message.message.clone(),
+            parsed_message.image_urls.clone(),
         )
         .await?;
+
+        let assignments = if let Some(image_urls) = parsed_message.image_urls.clone() {
+            let assignments: Vec<HashMap<String, String>> = image_urls
+                .into_iter()
+                .map(|image_url| {
+                    let mut assignment = HashMap::new();
+                    assignment.insert("message_id".to_string(), message_id.to_string());
+                    assignment.insert("image_url".to_string(), image_url);
+                    assignment
+                })
+                .collect();
+            Some(assignments)
+        } else {
+            None
+        };
 
         let outgoing_message = OutgoingMessage {
             sender_uid: user_uid,
             receiver_uid: parsed_message.receiver_id,
             text: parsed_message.message,
+            assignments,
             timestamp: Utc::now(),
+            is_read: false,
         };
 
         let success_message = SuccessMessage {
@@ -154,8 +188,7 @@ impl ChatWebSocket {
         Ok(serde_json::to_string(&ApiResponse {
             status: "success".to_string(),
             message: success_message,
-        })
-        .unwrap())
+        })?)
     }
 }
 
@@ -188,7 +221,13 @@ pub async fn get_user_chats(
     let mut conn = db_pool.get().expect("Failed to get DB connection");
     match chat_db::get_chats_for_user(&mut conn, &user_uid) {
         Ok(chats) => HttpResponse::Ok().json(chats),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+        Err(_) => HttpResponse::InternalServerError().json(ApiResponse {
+            status: "error".to_string(),
+            message: ErrorMessage {
+                error: "Failed to fetch user chats".to_string(),
+                details: None,
+            },
+        }),
     }
 }
 
@@ -201,6 +240,27 @@ pub struct ChatQuery {
 pub struct PaginationParams {
     pub limit: Option<i64>,
     pub offset: Option<i64>,
+}
+
+pub async fn read_message(
+    req: HttpRequest,
+    message_id: web::Path<i32>,
+    db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
+) -> impl Responder {
+    if !verify_token_from_request(&req).await {
+        return HttpResponse::Unauthorized().body("Invalid or missing token");
+    }
+    let mut conn = db_pool.get().expect("Failed to get DB connection");
+    match chat_db::read_message(&mut conn, &message_id) {
+        Ok(message) => HttpResponse::Ok().json(message),
+        Err(_) => HttpResponse::InternalServerError().json(ApiResponse {
+            status: "error".to_string(),
+            message: ErrorMessage {
+                error: "Failed to set the message to read".to_string(),
+                details: None,
+            },
+        }),
+    }
 }
 
 pub async fn get_chat_messages(
@@ -223,7 +283,7 @@ pub async fn get_chat_messages(
     let mut conn = db_pool.get().expect("Failed to get DB connection");
 
     match chat_db::get_messages_for_chat(&mut conn, chat_id, limit, offset) {
-        Ok(messages) => HttpResponse::Ok().json(messages),
+        Ok(chat_items) => HttpResponse::Ok().json(chat_items),
         Err(_) => HttpResponse::InternalServerError().finish(),
     }
 }
@@ -236,6 +296,29 @@ async fn verify_token_from_request(req: &HttpRequest) -> bool {
         }
     } else {
         false
+    }
+}
+pub async fn retrieve_chat(
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+    db_pool: web::Data<Pool<ConnectionManager<PgConnection>>>,
+) -> impl Responder {
+    if !verify_token_from_request(&req).await {
+        return HttpResponse::Unauthorized().body("Invalid or missing token");
+    }
+
+    let (user_uid, professional_profile_uid) = path.into_inner();
+    let mut conn = db_pool.get().expect("Failed to get DB connection");
+
+    match chat_db::retrieve_chat(&mut conn, &user_uid, &professional_profile_uid) {
+        Ok(chat) => HttpResponse::Ok().json(chat),
+        Err(_) => HttpResponse::InternalServerError().json(ApiResponse {
+            status: "error".to_string(),
+            message: ErrorMessage {
+                error: "Failed to retrieve or create chat".to_string(),
+                details: None,
+            },
+        }),
     }
 }
 

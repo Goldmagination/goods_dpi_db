@@ -1,12 +1,15 @@
 use chrono::NaiveTime;
-use serde::{Serialize, Deserialize};
-use diesel::sql_types::*; 
-use diesel::QueryableByName; 
+use diesel::sql_types::*;
+use diesel::QueryableByName;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, QueryableByName, Serialize, Deserialize)]
 pub struct ProfessionalProfileDTO {
     #[diesel(sql_type = Integer)]
     pub id: i32,
+
+    #[diesel(sql_type = Text)]
+    pub professional_profile_uid: String,
 
     #[diesel(sql_type = Nullable<Text>)]
     pub image_url: Option<String>,
@@ -24,7 +27,7 @@ pub struct ProfessionalProfileDTO {
     pub remote_available: bool,
 
     #[diesel(sql_type = Nullable<Float8>)]
-    pub average_rating: Option<f64>,  // Nullable to handle cases where it might be NaN or NULL
+    pub average_rating: Option<f64>, // Nullable to handle cases where it might be NaN or NULL
 
     #[diesel(sql_type = BigInt)]
     pub review_count: i64,
@@ -39,14 +42,14 @@ pub struct ProfessionalProfileDTO {
     pub zip: String,
 
     #[diesel(sql_type = Float8)]
-    pub lng: f64, 
+    pub lng: f64,
 
     #[diesel(sql_type = Float8)]
     pub lat: f64,
 
     #[diesel(sql_type = Text)]
     pub category_name: String,
-    
+
     #[diesel(sql_type = Text)]
     pub professional_name: String,
 }

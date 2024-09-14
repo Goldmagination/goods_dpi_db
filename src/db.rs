@@ -5,7 +5,7 @@ use std::env;
 pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
 pub fn establish_connection() -> Pool {
-    let database_url = env::var("DATABASE_URL")
+    let database_url = env::var("DATABASE_PRODUCTION_URL")
         .expect("DATABASE_URL must be set");
     let manager = ConnectionManager::<PgConnection>::new(database_url);
     r2d2::Pool::builder()
@@ -19,7 +19,7 @@ mod tests {
 
     #[test]
     fn test_establish_connection_success() {
-        env::set_var("DATABASE_URL", "postgres://username:password@localhost/test_db");
+        env::set_var("DATABASE_PRODUCTION_URL", "postgres://username:password@localhost/test_db");
         let pool = establish_connection();
         assert!(pool.get().is_ok());
     }
@@ -27,7 +27,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "DATABASE_URL must be set")]
     fn test_establish_connection_no_env_var() {
-        env::remove_var("DATABASE_URL");
+        env::remove_var("DATABASE_PRODUCTION_URL");
         establish_connection();
     }
 }
