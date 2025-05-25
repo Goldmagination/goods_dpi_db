@@ -9,9 +9,13 @@ pub async fn get_user_handler(
     user_email: web::Path<String>,
     db_pool: web::Data<Pool>,
 ) -> impl Responder {
-    let mut conn = db_pool
-        .get()
-        .expect("Failed to get DB connection from pool");
+    let mut conn = match db_pool.get() {
+        Ok(conn) => conn,
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .body("Failed to acquire database connection.")
+        }
+    };
 
     match user_db::get_user_by_email(&mut conn, &user_email).await {
         Ok(user) => HttpResponse::Ok().json(user),
@@ -23,9 +27,13 @@ pub async fn register_user(
     data: web::Json<RegistrationData>,
     db_pool: web::Data<Pool>,
 ) -> impl Responder {
-    let mut conn = db_pool
-        .get()
-        .expect("Failed to get DB connection from pool");
+    let mut conn = match db_pool.get() {
+        Ok(conn) => conn,
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .body("Failed to acquire database connection.")
+        }
+    };
 
     // Extract data
     let email = &data.email;
@@ -44,10 +52,12 @@ pub async fn register_user(
             })
             .await
             {
-                Ok(_) => HttpResponse::Ok().body("User registered successfully"),
-                Err(err) => {
-                    HttpResponse::InternalServerError().body(format!("Database error: {}", err))
+                Ok(Ok(_)) => HttpResponse::Ok().body("User registered successfully"),
+                Ok(Err(db_error)) => {
+                    HttpResponse::InternalServerError().body(format!("Database error: {}", db_error))
                 }
+                Err(blocking_error) => HttpResponse::InternalServerError()
+                    .body(format!("Task execution error: {}", blocking_error)),
             }
         }
         Err(err) => return HttpResponse::BadRequest().body(format!("Firebase error: {}", err)),
