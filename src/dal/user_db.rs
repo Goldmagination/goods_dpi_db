@@ -45,29 +45,67 @@ pub fn save_user_to_database(
     Ok(())
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use diesel::pg::PgConnection;
-//     use crate::db::establish_connection;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::establish_connection_test;
+    use crate::models::user_aggregate::new_user::NewUser; // Corrected path
+    use crate::schema::schema::users;
+    use diesel::Connection;
+    use diesel::RunQueryDsl;
 
-//     #[test]
-//     fn test_get_user_by_email() {
-//         let connection = setup_test_db();
+    // Function to setup a test database connection
+    fn setup_test_db() -> PgConnection {
+        let mut connection = establish_connection_test();
+        connection
+            .begin_test_transaction()
+            .expect("Failed to begin test transaction");
+        connection
+    }
 
-//         // Your known_category_id should be defined here
-//         let test_user_data = "test@test.com";
+    #[test]
+    fn test_get_user_by_email() {
+        let mut conn = setup_test_db();
 
-//         let result = match get_user_by_email(&mut connection, test_user_data.to_string()){
-//             Ok(user) => Ok(()),
-//             Err(_) => panic!()};
+        // Test 1: User Exists
+        let test_email = "test@example.com";
+        let test_name = "Test User";
+        let test_uid = "testuid123";
 
-//         assert!(result.is_ok());
-//     }
+        let new_user = NewUser {
+            name: test_name.to_string(),
+            email: test_email.to_string(),
+            user_uid: test_uid.to_string(),
+        };
 
-//     // Function to setup a test database connection
-//     fn setup_test_db() -> PgConnection {
-//         let connection = establish_connection(); // Use your connection setup function here
-//         connection.test_transaction().unwrap()
-//     }
-// }
+        diesel::insert_into(users::table)
+            .values(&new_user)
+            .execute(&mut conn)
+            .expect("Failed to insert test user");
+
+        match get_user_by_email(&mut conn, test_email) { // Removed .await
+            Ok(user_dto) => {
+                assert_eq!(user_dto.user.email, test_email);
+                assert_eq!(user_dto.user.name, test_name);
+                assert_eq!(user_dto.user.user_uid, test_uid);
+                // We expect 0 unread messages and 0 active bookings for a new user
+                assert_eq!(user_dto.unread_messages, 0);
+                assert_eq!(user_dto.active_bookings, 0);
+            }
+            Err(e) => panic!("Expected user to be found, but got error: {}", e),
+        }
+
+        // Test 2: User Does Not Exist
+        let non_existent_email = "nonexistent@example.com";
+        match get_user_by_email(&mut conn, non_existent_email) { // Removed .await
+            Ok(_) => panic!("Expected user not to be found, but got a user"),
+            Err(diesel::result::Error::NotFound) => {
+                // This is the expected outcome
+            }
+            Err(e) => panic!(
+                "Expected NotFound error, but got a different error: {}",
+                e
+            ),
+        }
+    }
+}
