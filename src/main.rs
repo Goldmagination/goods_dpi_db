@@ -1,4 +1,7 @@
 mod db;
+mod websocket;
+mod handlers;
+mod middleware;
 mod errors {
     pub mod booking_errors;
     pub mod firebase_errors;
@@ -77,10 +80,13 @@ mod schema {
     pub mod schema;
 }
 
+use actix::Actor;
 use actix_cors::Cors;
-use actix_web::{web, App, HttpServer};
+use actix_web::{web, App, HttpServer, middleware::Logger};
 use db::Pool;
 use dotenv::dotenv;
+use env_logger::Env;
+use log::info;
 
 use services::{
     categories_services::category_endpoints, chat_services::chat_endpoints,
@@ -91,18 +97,60 @@ use services::{
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Initialize logger
+    env_logger::init_from_env(Env::default().default_filter_or("info"));
+    
+    // Load environment variables
     dotenv().ok();
+    
+    // Database connection pool
     let pool: Pool = db::establish_connection();
+    
+    // Start chat server actor for WebSocket
+    let chat_server = websocket::ChatServer::new().start();
+    
+    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let bind_address = format!("{}:{}", host, port);
+    
+    info!("Starting Goods backend with WebSocket on {}", bind_address);
 
     HttpServer::new(move || {
         App::new()
+            // Add logger middleware
+            .wrap(Logger::default())
+            
+            // CORS configuration
             .wrap(
                 Cors::default()
                     .allowed_origin("*")
-                    .allowed_methods(vec!["GET", "POST"])
+                    .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+                    .allowed_headers(vec!["Content-Type", "Authorization"])
+                    .supports_credentials()
                     .max_age(3600),
             )
+            
+            // App data
             .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(chat_server.clone()))
+            
+            // WebSocket routes
+            .service(
+                web::scope("/ws")
+                    .route("/chat/{user_id}", web::get().to(handlers::websocket_handler::chat_websocket))
+                    .route("/health", web::get().to(handlers::websocket_handler::websocket_health))
+            )
+            
+            // Health check
+            .route("/health", web::get().to(|| async { 
+                actix_web::HttpResponse::Ok().json(serde_json::json!({
+                    "status": "healthy",
+                    "service": "goods-backend",
+                    "websocket": "enabled"
+                }))
+            }))
+            
+            // Existing API routes
             .configure(user_endpoints::user_routes)
             .configure(professional_endpoints::professional_routes)
             .configure(professional_profile_endpoints::professional_profile_routes)
@@ -110,7 +158,7 @@ async fn main() -> std::io::Result<()> {
             .configure(chat_endpoints::chat_routes)
             .configure(task_endpoints::task_routes)
     })
-    .bind("0.0.0.0:8080")?
+    .bind(&bind_address)?
     .run()
     .await
 }
