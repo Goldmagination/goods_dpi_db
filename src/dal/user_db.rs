@@ -48,23 +48,24 @@ pub fn save_user_to_database(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::establish_connection_test;
-    use crate::models::user_aggregate::new_user::NewUser; // Corrected path
+    use crate::db::establish_connection;
+    use crate::models::user_aggregate::user::NewUser;
     use crate::schema::schema::users;
-    use diesel::Connection;
     use diesel::RunQueryDsl;
+    use diesel::r2d2::{ConnectionManager, PooledConnection};
 
     // Function to setup a test database connection
-    fn setup_test_db() -> PgConnection {
-        let mut connection = establish_connection_test();
+    fn setup_test_db() -> PooledConnection<ConnectionManager<PgConnection>> {
+        let pool = establish_connection();
+        let mut connection = pool.get().expect("Failed to get connection from pool");
         connection
             .begin_test_transaction()
             .expect("Failed to begin test transaction");
         connection
     }
 
-    #[test]
-    fn test_get_user_by_email() {
+    #[actix_web::test]
+    async fn test_get_user_by_email() {
         let mut conn = setup_test_db();
 
         // Test 1: User Exists
@@ -83,11 +84,11 @@ mod tests {
             .execute(&mut conn)
             .expect("Failed to insert test user");
 
-        match get_user_by_email(&mut conn, test_email) { // Removed .await
+        match get_user_by_email(&mut conn, test_email).await {
             Ok(user_dto) => {
-                assert_eq!(user_dto.user.email, test_email);
-                assert_eq!(user_dto.user.name, test_name);
-                assert_eq!(user_dto.user.user_uid, test_uid);
+                assert_eq!(user_dto.email, test_email);
+                assert_eq!(user_dto.name, test_name);
+                assert_eq!(user_dto.user_uid, test_uid);
                 // We expect 0 unread messages and 0 active bookings for a new user
                 assert_eq!(user_dto.unread_messages, 0);
                 assert_eq!(user_dto.active_bookings, 0);
@@ -97,7 +98,7 @@ mod tests {
 
         // Test 2: User Does Not Exist
         let non_existent_email = "nonexistent@example.com";
-        match get_user_by_email(&mut conn, non_existent_email) { // Removed .await
+        match get_user_by_email(&mut conn, non_existent_email).await {
             Ok(_) => panic!("Expected user not to be found, but got a user"),
             Err(diesel::result::Error::NotFound) => {
                 // This is the expected outcome
